@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+body {
+  font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  header, footer, nav, .print\:hidden { display: none !important; }
+  body { background: white !important; margin: 0; padding: 0; }
+  main { padding: 0 !important; max-width: none !important; }
+  .bg-blue-900 { background-color: #1e3a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .text-white { color: white !important; }
+  .bg-gray-50, .bg-gray-100 { background-color: #f9fafb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rounded-2xl, .rounded-xl, .rounded-lg { border-radius: 0 !important; }
+  .shadow-sm, .shadow-md { box-shadow: none !important; }
+  .border { border: 1px solid #e5e7eb !important; }
+  /* Hide everything except the print area */
+  body > * { display: none; }
+  body > div:has(#agenda-print-area),
+  body > div:has(#minutes-print-area),
+  #agenda-print-area,
+  #minutes-print-area { display: block !important; }
+  #agenda-print-area, #minutes-print-area { padding: 20px; }
+}

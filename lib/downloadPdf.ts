@@ -1,0 +1,360 @@
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+export interface AgendaItem {
+  order: number; title: string; description: string; duration: string; presenters: string[];
+}
+export interface Meeting {
+  name: string; date: string; location?: string; chairperson?: string; meetLink?: string;
+}
+export interface Attendee { name: string; designation: string; }
+export interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
+export interface MinutesData {
+  meetingType: string; meetingReference: string;
+  attendees: Attendee[]; items: MinutesItem[];
+  nextMeetingDate: string; nextMeetingLocation: string;
+}
+
+const BLUE: [number, number, number] = [30, 58, 138];
+const WHITE: [number, number, number] = [255, 255, 255];
+const DARK: [number, number, number] = [17, 24, 39];
+const GRAY7: [number, number, number] = [55, 65, 81];
+const GRAY5: [number, number, number] = [107, 114, 128];
+const GRAY4: [number, number, number] = [156, 163, 175];
+const GRAY2: [number, number, number] = [229, 231, 235];
+const GRAY1: [number, number, number] = [243, 244, 246];
+
+const PW = 210;
+const M = 15;
+const CW = PW - 2 * M;
+
+function fmtDate(d: string): string {
+  if (!d) return '';
+  const s = d.substring(0, 10);
+  const [y, mo, day] = s.split('-').map(Number);
+  return new Date(y, mo - 1, day).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+}
+
+function fmtShort(d: string): string {
+  if (!d) return '';
+  const s = d.substring(0, 10);
+  const [y, mo, day] = s.split('-').map(Number);
+  return `${String(day).padStart(2, '0')}.${String(mo).padStart(2, '0')}.${y}`;
+}
+
+function check(pdf: jsPDF, y: number, need = 12): number {
+  if (y + need > pdf.internal.pageSize.getHeight() - M) {
+    pdf.addPage();
+    return M + 5;
+  }
+  return y;
+}
+
+function agendaHeader(pdf: jsPDF, meeting: Meeting): number {
+  let y = M;
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...BLUE);
+  pdf.text('OFFICIAL AGENDA', PW / 2, y, { align: 'center' });
+  y += 6;
+
+  pdf.setFontSize(20);
+  pdf.setTextColor(...DARK);
+  const lines = pdf.splitTextToSize(meeting?.name || 'Meeting', CW);
+  pdf.text(lines, PW / 2, y, { align: 'center' });
+  y += lines.length * 8 + 3;
+
+  const metas: { label: string; value: string }[] = [
+    { label: 'DATE', value: fmtDate(meeting.date) },
+    ...(meeting.location ? [{ label: 'VENUE', value: meeting.location }] : []),
+    ...(meeting.chairperson ? [{ label: 'CHAIRPERSON', value: meeting.chairperson }] : []),
+  ];
+  const mw = CW / metas.length;
+  metas.forEach(({ label, value }, i) => {
+    const x = M + i * mw + mw / 2;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(...GRAY4);
+    pdf.text(label, x, y, { align: 'center' });
+    pdf.setFontSize(10);
+    pdf.setTextColor(...GRAY7);
+    pdf.text(value, x, y + 4.5, { align: 'center' });
+  });
+  y += 12;
+
+  pdf.setDrawColor(...BLUE);
+  pdf.setLineWidth(0.8);
+  pdf.line(M, y, PW - M, y);
+  y += 8;
+  return y;
+}
+
+function footer(pdf: jsPDF) {
+  const ph = pdf.internal.pageSize.getHeight();
+  const y = ph - 10;
+  pdf.setDrawColor(...GRAY2);
+  pdf.setLineWidth(0.3);
+  pdf.line(M, y - 2, PW - M, y - 2);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...GRAY4);
+  const d = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  pdf.text(`Generated: ${d}`, M, y + 2);
+  pdf.text('Confidential', PW - M, y + 2, { align: 'right' });
+}
+
+export function downloadAgendaPdf(meeting: Meeting, items: AgendaItem[]) {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const filtered = items.filter((i) => i.title.trim());
+
+  const y = agendaHeader(pdf, meeting);
+
+  autoTable(pdf, {
+    startY: y,
+    head: [['#', 'Agenda Item', 'Presenter(s)', 'Duration']],
+    body: filtered.length
+      ? filtered.map((item) => [
+          String(item.order),
+          item.description?.trim() ? `${item.title}\n${item.description}` : item.title,
+          item.presenters?.filter((p) => p.trim()).join(', ') || '—',
+          item.duration || '—',
+        ])
+      : [['', 'No agenda items added.', '', '']],
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 100 },
+      2: { cellWidth: 45 },
+      3: { cellWidth: 25 },
+    },
+    headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 10 },
+    bodyStyles: { fontSize: 10, textColor: DARK },
+    alternateRowStyles: { fillColor: GRAY1 },
+    margin: { left: M, right: M },
+  });
+
+  footer(pdf);
+  pdf.save(`Agenda - ${meeting?.name || 'Meeting'}.pdf`);
+}
+
+function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const LM = 15;
+  const LW = 210 - 2 * LM; // 180
+  let y = LM;
+
+  // --- Header Table ---
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.3);
+  
+  const leftW = LW * 0.55;
+  const rightW = LW - leftW;
+  const rowH = 7.5;
+  const headerH = 4 * rowH;
+
+  pdf.rect(LM, y, leftW, headerH);
+  for(let i=0; i<4; i++) {
+    pdf.rect(LM + leftW, y + (i*rowH), rightW, rowH);
+  }
+
+  // Left Content
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(meeting?.name?.toUpperCase() || 'MEETING', LM + leftW / 2, y + 12, { align: 'center' });
+  pdf.text('MINUTES OF MEETING', LM + leftW / 2, y + 20, { align: 'center' });
+
+  // Right Content
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  const metaLines = [
+    [`Types of Meeting`, data.meetingType || '—'],
+    [`Meeting Reference`, data.meetingReference || '—'],
+    [`Meeting Venue`, meeting?.location || '—'],
+    [`Date & Time`, fmtShort(meeting?.date)],
+  ];
+  metaLines.forEach(([label, value], i) => {
+    pdf.text(`${label}`, LM + leftW + 2, y + (i * rowH) + 5.5);
+    pdf.text(`: ${value}`, LM + leftW + 32, y + (i * rowH) + 5.5);
+  });
+
+  y += headerH; // Stack exactly at the bottom of the header
+
+  // --- Attendees row ---
+  pdf.rect(LM, y, LW, 8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text('Attendees', LM + 2, y + 5.5);
+  y += 8;
+
+  // --- Spacer row ---
+  pdf.rect(LM, y, LW, 5);
+  y += 5;
+
+  // --- Attendees table ---
+  const attendees = data.attendees.filter((a) => a.name.trim());
+  if (attendees.length > 0) {
+    autoTable(pdf, {
+      startY: y,
+      theme: 'grid',
+      head: [['SL NO', 'Name', 'Designation']],
+      body: attendees.map((a, i) => [String(i + 1), a.name, a.designation || '']),
+      columnStyles: {
+        0: { cellWidth: 15, halign: 'left' },
+        1: { cellWidth: 82.5 },
+        2: { cellWidth: 82.5 },
+      },
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10, lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center' },
+      bodyStyles: { fontSize: 10, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.3 },
+      margin: { left: LM, right: LM },
+      tableWidth: LW,
+    });
+    y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  }
+
+  // --- Discussion table ---
+  const items = data.items.filter((i) => i.subject.trim());
+  if (items.length > 0) {
+    let nextY = check(pdf, y, 25);
+    if (nextY === y) {
+      // Draw a spacer row to connect the tables if on the same page
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.3);
+      pdf.rect(LM, y, LW, 6);
+      y += 6;
+    } else {
+      y = nextY;
+    }
+
+    autoTable(pdf, {
+      startY: y,
+      theme: 'grid',
+      head: [['SN', 'Subject/Discussions', 'Action\nBy', 'Date of\nAction', 'Remarks']],
+      body: items.map((item, i) => [
+        String(i + 1),
+        item.subject,
+        item.actionBy || '',
+        item.dateOfAction ? fmtShort(item.dateOfAction) : '',
+        item.remarks || '',
+      ]),
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'left' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 20, fontStyle: 'bold', halign: 'center' },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 35 },
+      },
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9, lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center' },
+      bodyStyles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.3, valign: 'top' },
+      margin: { left: LM, right: LM },
+      tableWidth: LW,
+    });
+    y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  }
+
+  // --- Next meeting ---
+  if (data.nextMeetingDate || data.nextMeetingLocation) {
+    y = check(pdf, y, 15);
+    y += 5; // Add a small gap before the next meeting block since it's not part of the main table
+    pdf.setFillColor(239, 246, 255);
+    pdf.setDrawColor(191, 219, 254);
+    pdf.setLineWidth(0.3);
+    pdf.rect(LM, y, LW, 12, 'FD');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLUE);
+    pdf.text('NEXT MEETING', LM + 4, y + 5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(...GRAY7);
+    const parts: string[] = [];
+    if (data.nextMeetingDate) parts.push(`Date: ${fmtDate(data.nextMeetingDate)}`);
+    if (data.nextMeetingLocation) parts.push(`Venue: ${data.nextMeetingLocation}`);
+    pdf.text(parts.join('        '), LM + 4, y + 9);
+    y += 12;
+  }
+
+  // --- Signatures ---
+  y = check(pdf, y, 30);
+  y += 10;
+  pdf.setDrawColor(...GRAY2);
+  pdf.setLineWidth(0.6);
+  pdf.line(LM, y, LM + LW, y);
+  y += 14;
+
+  pdf.setDrawColor(180, 180, 180);
+  pdf.setLineWidth(0.3);
+  pdf.line(LM, y, LM + 60, y);
+  pdf.line(LM + 120, y, LM + 180, y);
+  y += 4;
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(...GRAY7);
+  pdf.text(`Chairperson${meeting.chairperson ? ' — ' + meeting.chairperson : ''}`, LM, y);
+  pdf.text('Secretary / Recorder', LM + 120, y);
+  y += 4;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(...GRAY5);
+  pdf.text('Date: _______________', LM, y);
+  pdf.text('Date: _______________', LM + 120, y);
+
+  // footer
+  const ph = pdf.internal.pageSize.getHeight();
+  const fy = ph - 10;
+  pdf.setDrawColor(...GRAY2);
+  pdf.setLineWidth(0.3);
+  pdf.line(LM, fy - 2, 210 - LM, fy - 2);
+  pdf.setFontSize(8);
+  pdf.setTextColor(...GRAY4);
+  const nd = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  pdf.text(`Generated: ${nd}`, LM, fy + 2);
+  pdf.text('Confidential — For Internal Use Only', 210 - LM, fy + 2, { align: 'right' });
+
+  return pdf;
+}
+
+export function downloadMinutesPdf(meeting: Meeting, data: MinutesData) {
+  buildMinutesPdf(meeting, data).save(`Minutes - ${meeting?.name || 'Meeting'}.pdf`);
+}
+
+export async function shareMinutesPdf(
+  meeting: Meeting,
+  data: MinutesData,
+  via: 'email' | 'whatsapp'
+) {
+  const pdf = buildMinutesPdf(meeting, data);
+  const filename = `Minutes - ${meeting?.name || 'Meeting'}.pdf`;
+
+  // Web Share API works well on mobile, but on Windows Desktop it often creates an empty "no_name" file
+  // when trying to share an in-memory File object to the native Mail app.
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (isMobile && navigator.canShare) {
+    const blob = pdf.output('blob');
+    const file = new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ title: filename, files: [file] });
+        return;
+      } catch {
+        // user cancelled or not supported — fall through
+      }
+    }
+  }
+
+  // Fallback for Desktop: download the PDF automatically
+  pdf.save(filename);
+
+  const subject = `Minutes of Meeting — ${meeting?.name || 'Meeting'}`;
+  const note = `Please find the Minutes of Meeting for "${meeting?.name || 'Meeting'}" (${fmtDate(meeting?.date)}) attached as PDF.\n\n(Note: You will need to manually attach the PDF file that just downloaded to this email.)`;
+
+  if (via === 'email') {
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(note)}`);
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(`*${subject}*\n\n${note}`)}`, '_blank');
+  }
+}
