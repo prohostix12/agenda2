@@ -20,6 +20,7 @@ export interface IMinutes extends Document {
   items: IMinutesItem[];
   nextMeetingDate?: string;
   nextMeetingLocation?: string;
+  pdfBase64?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +52,7 @@ const MinutesSchema = new Schema<IMinutes>(
     items: { type: [MinutesItemSchema], default: [] },
     nextMeetingDate: { type: String },
     nextMeetingLocation: { type: String },
+    pdfBase64: { type: String },
   },
   { timestamps: true }
 );
@@ -59,3 +61,4 @@ const Minutes: Model<IMinutes> =
   mongoose.models.Minutes ?? mongoose.model<IMinutes>('Minutes', MinutesSchema);
 
 export default Minutes;
+

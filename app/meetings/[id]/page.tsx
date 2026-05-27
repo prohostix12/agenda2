@@ -29,14 +29,18 @@ export default function MeetingPage() {
 
   useEffect(() => {
     if (!id) {
-      setError('Invalid meeting link.');
-      setMeeting(null);
-      setLoading(false);
+      Promise.resolve().then(() => {
+        setError('Invalid meeting link.');
+        setMeeting(null);
+        setLoading(false);
+      });
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    Promise.resolve().then(() => {
+      setLoading(true);
+      setError(null);
+    });
 
     fetch(`/api/meetings/${id}`)
       .then(async (r) => {

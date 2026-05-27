@@ -5,6 +5,7 @@ export interface AgendaItem {
   order: number; title: string; description: string; duration: string; presenters: string[];
 }
 export interface Meeting {
+  _id?: string;
   name: string; date: string; location?: string; chairperson?: string; meetLink?: string;
 }
 export interface Attendee { name: string; designation: string; }
@@ -218,7 +219,7 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
   // --- Discussion table ---
   const items = data.items.filter((i) => i.subject.trim());
   if (items.length > 0) {
-    let nextY = check(pdf, y, 25);
+    const nextY = check(pdf, y, 25);
     if (nextY === y) {
       // Draw a spacer row to connect the tables if on the same page
       pdf.setDrawColor(0, 0, 0);
@@ -321,6 +322,87 @@ export function downloadMinutesPdf(meeting: Meeting, data: MinutesData) {
   buildMinutesPdf(meeting, data).save(`Minutes - ${meeting?.name || 'Meeting'}.pdf`);
 }
 
+export function getMinutesTextSummary(
+  meeting: Meeting,
+  data: MinutesData,
+  isWhatsApp: boolean,
+  pdfUrl?: string
+): string {
+  const lines: string[] = [];
+
+  if (isWhatsApp) {
+    lines.push(`*MINUTES OF MEETING: ${meeting?.name?.toUpperCase() || 'MEETING'}*`);
+  } else {
+    lines.push(`MINUTES OF MEETING: ${meeting?.name?.toUpperCase() || 'MEETING'}`);
+  }
+
+  lines.push(`Date: ${fmtDate(meeting?.date)}`);
+  if (meeting?.location) lines.push(`Venue: ${meeting.location}`);
+  if (meeting?.chairperson) lines.push(`Chairperson: ${meeting.chairperson}`);
+  if (data.meetingType) lines.push(`Meeting Type: ${data.meetingType}`);
+  if (data.meetingReference) lines.push(`Reference No: ${data.meetingReference}`);
+  lines.push('');
+
+  const attendees = data.attendees.filter((a) => a.name.trim());
+  if (attendees.length > 0) {
+    if (isWhatsApp) {
+      lines.push(`*ATTENDEES:*`);
+    } else {
+      lines.push(`ATTENDEES:`);
+    }
+    attendees.forEach((a, i) => {
+      lines.push(`${i + 1}. ${a.name}${a.designation ? ` (${a.designation})` : ''}`);
+    });
+    lines.push('');
+  }
+
+  const items = data.items.filter((i) => i.subject.trim());
+  if (items.length > 0) {
+    if (isWhatsApp) {
+      lines.push(`*DISCUSSIONS & ACTION ITEMS:*`);
+    } else {
+      lines.push(`DISCUSSIONS & ACTION ITEMS:`);
+    }
+    items.forEach((item, i) => {
+      lines.push(`${i + 1}. Subject: ${item.subject}`);
+      if (item.actionBy) lines.push(`   Action By: ${item.actionBy}`);
+      if (item.dateOfAction) lines.push(`   Date of Action: ${fmtShort(item.dateOfAction)}`);
+      if (item.remarks) lines.push(`   Remarks: ${item.remarks}`);
+      lines.push('');
+    });
+  }
+
+  if (data.nextMeetingDate || data.nextMeetingLocation) {
+    if (isWhatsApp) {
+      lines.push(`*NEXT MEETING:*`);
+    } else {
+      lines.push(`NEXT MEETING:`);
+    }
+    if (data.nextMeetingDate) lines.push(`Date: ${fmtDate(data.nextMeetingDate)}`);
+    if (data.nextMeetingLocation) lines.push(`Venue: ${data.nextMeetingLocation}`);
+    lines.push('');
+  }
+
+  if (isWhatsApp) {
+    if (pdfUrl) {
+      lines.push(`*View/Download PDF:* ${pdfUrl}`);
+      lines.push('');
+    } else {
+      lines.push(`_(Note: The official PDF has been downloaded to your device.)_`);
+    }
+  } else {
+    lines.push(`(Note: The official PDF has been downloaded to your device. You can manually attach it to this email if needed.)`);
+  }
+
+  return lines.join('\n');
+}
+
+export function getMinutesPdfBase64(meeting: Meeting, data: MinutesData): string {
+  const pdf = buildMinutesPdf(meeting, data);
+  const dataUri = pdf.output('datauristring');
+  return dataUri.split(',')[1];
+}
+
 export async function shareMinutesPdf(
   meeting: Meeting,
   data: MinutesData,
@@ -350,11 +432,18 @@ export async function shareMinutesPdf(
   pdf.save(filename);
 
   const subject = `Minutes of Meeting — ${meeting?.name || 'Meeting'}`;
-  const note = `Please find the Minutes of Meeting for "${meeting?.name || 'Meeting'}" (${fmtDate(meeting?.date)}) attached as PDF.\n\n(Note: You will need to manually attach the PDF file that just downloaded to this email.)`;
+  const isWhatsApp = via === 'whatsapp';
+
+  const pdfUrl = typeof window !== 'undefined' && meeting._id
+    ? `${window.location.origin}/api/share/pdf/${meeting._id}`
+    : undefined;
+
+  const bodyText = getMinutesTextSummary(meeting, data, isWhatsApp, pdfUrl);
 
   if (via === 'email') {
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(note)}`);
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`);
   } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`*${subject}*\n\n${note}`)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(bodyText)}`, '_blank');
   }
 }
+
