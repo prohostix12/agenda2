@@ -202,9 +202,9 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const pdfBlob = new Blob([byteNumbers], { type: 'application/pdf' });
-      const pdfFile = new File([pdfBlob], `${meeting.title || 'Minutes'}.pdf`, { type: 'application/pdf' });
+      const pdfFile = new File([pdfBlob], `${meeting.name || 'Minutes'}.pdf`, { type: 'application/pdf' });
       const shareData = {
-        title: `Minutes - ${meeting.title || ''}`,
+        title: `Minutes - ${meeting.name || ''}`,
         text: bodyText,
         files: [pdfFile],
       };
