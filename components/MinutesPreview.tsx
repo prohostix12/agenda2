@@ -5,8 +5,10 @@ import { parseLocalDate } from '@/lib/dateUtils';
 
 interface Attendee { name: string; designation: string; }
 interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
+interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string; meetingReference: string;
+  purpose: string; department: string;
   attendees: Attendee[]; items: MinutesItem[];
   nextMeetingDate: string; nextMeetingLocation: string;
 }
@@ -27,9 +29,10 @@ function SubjectLines({ text }: { text: string }) {
   );
 }
 
-export default function MinutesPreview({ meeting, data }: { meeting: Meeting; data: MinutesData }) {
+export default function MinutesPreview({ meeting, data, agendaItems = [] }: { meeting: Meeting; data: MinutesData; agendaItems?: AgendaItem[] }) {
   const attendees = data.attendees.filter((a) => a.name.trim());
   const items = data.items.filter((i) => i.subject.trim());
+  const agenda = agendaItems.filter((a) => a.title.trim());
 
   return (
     <div className="bg-gray-100 p-4 rounded-2xl">
@@ -52,6 +55,12 @@ export default function MinutesPreview({ meeting, data }: { meeting: Meeting; da
                 <span className="font-semibold w-36 shrink-0">Meeting Reference</span>
                 <span>: {data.meetingReference || '—'}</span>
               </div>
+              {data.department && (
+                <div className="flex gap-2">
+                  <span className="font-semibold w-36 shrink-0">Department</span>
+                  <span>: {data.department}</span>
+                </div>
+              )}
               <div className="flex gap-2">
                 <span className="font-semibold w-36 shrink-0">Meeting Venue</span>
                 <span>: {meeting.location || '—'}</span>
@@ -68,6 +77,46 @@ export default function MinutesPreview({ meeting, data }: { meeting: Meeting; da
               )}
             </div>
           </div>
+
+          {/* Purpose of Meeting */}
+          {data.purpose && (
+            <div className="mb-0">
+              <div className="border-x border-b border-gray-600 px-3 py-1.5 font-bold text-sm bg-gray-50">Purpose of Meeting</div>
+              <div className="border-x border-b border-gray-600 px-3 py-3 text-sm whitespace-pre-wrap">
+                {data.purpose}
+              </div>
+            </div>
+          )}
+
+          {/* Agenda */}
+          {agenda.length > 0 && (
+            <div className="mb-0">
+              <div className="border-x border-b border-gray-600 px-3 py-1.5 font-bold text-sm bg-gray-50">Agenda</div>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="border-x border-b border-gray-600 px-3 py-2 text-left w-14 font-bold bg-gray-50">SL NO</th>
+                    <th className="border-x border-b border-gray-600 px-3 py-2 text-left font-bold bg-gray-50">Agenda Item</th>
+                    <th className="border-x border-b border-gray-600 px-3 py-2 text-left w-28 font-bold bg-gray-50">Presenter(s)</th>
+                    <th className="border-x border-b border-gray-600 px-3 py-2 text-left w-24 font-bold bg-gray-50">Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agenda.map((item, i) => (
+                    <tr key={i}>
+                      <td className="border-x border-b border-gray-600 px-3 py-2">{item.order}</td>
+                      <td className="border-x border-b border-gray-600 px-3 py-2">
+                        <div className="font-medium">{item.title}</div>
+                        {item.description && <div className="text-gray-500 text-xs mt-0.5">{item.description}</div>}
+                      </td>
+                      <td className="border-x border-b border-gray-600 px-3 py-2 text-xs">{item.presenters?.filter(p => p.trim()).join(', ') || '—'}</td>
+                      <td className="border-x border-b border-gray-600 px-3 py-2 text-xs">{item.duration || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Attendees */}
           {attendees.length > 0 && (

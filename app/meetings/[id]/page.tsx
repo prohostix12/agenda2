@@ -125,7 +125,13 @@ export default function MeetingPage() {
                 Chairperson: {meeting.chairperson}
               </span>
             )}
-            {meeting.meetLink && (
+            {meeting.meetLink && (() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const meetingDay = parseLocalDate(meeting.date);
+              meetingDay.setHours(0, 0, 0, 0);
+              return meetingDay >= today;
+            })() && (
               <a
                 href={meeting.meetLink}
                 target="_blank"
@@ -138,6 +144,7 @@ export default function MeetingPage() {
                 Join Meet
               </a>
             )}
+
           </div>
         </div>
       </div>

@@ -6,9 +6,12 @@ import { downloadMinutesPdf, shareMinutesPdf, getMinutesPdfBase64, getMinutesTex
 
 interface Attendee { name: string; designation: string; }
 interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
+interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string;
   meetingReference: string;
+  purpose: string;
+  department: string;
   attendees: Attendee[];
   items: MinutesItem[];
   nextMeetingDate: string;
@@ -23,6 +26,8 @@ const emptyItem = (): MinutesItem => ({ subject: '', actionBy: '', dateOfAction:
 const defaultData = (): MinutesData => ({
   meetingType: 'OFFICE',
   meetingReference: '',
+  purpose: '',
+  department: '',
   attendees: [emptyAttendee()],
   items: [emptyItem()],
   nextMeetingDate: '',
@@ -31,6 +36,7 @@ const defaultData = (): MinutesData => ({
 
 export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   const [data, setData] = useState<MinutesData>(defaultData());
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -46,29 +52,33 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   const [emailSuccess, setEmailSuccess] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/minutes/${meeting._id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d && d._id) {
-          setData({
-            meetingType: d.meetingType ?? 'OFFICE',
-            meetingReference: d.meetingReference ?? '',
-            attendees: d.attendees?.length ? d.attendees : [emptyAttendee()],
-            items: d.items?.length ? d.items : [emptyItem()],
-            nextMeetingDate: d.nextMeetingDate ?? '',
-            nextMeetingLocation: d.nextMeetingLocation ?? '',
-          });
-        } else {
-          setData(defaultData());
-        }
-      })
-      .catch((err) => {
-        console.error('Error fetching minutes:', err);
+    Promise.all([
+      fetch(`/api/minutes/${meeting._id}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/agenda/${meeting._id}`).then((r) => r.json()).catch(() => null),
+    ]).then(([d, agendaData]) => {
+      if (d && d._id) {
+        setData({
+          meetingType: d.meetingType ?? 'OFFICE',
+          meetingReference: d.meetingReference ?? '',
+          purpose: d.purpose ?? '',
+          department: d.department ?? '',
+          attendees: d.attendees?.length ? d.attendees : [emptyAttendee()],
+          items: d.items?.length ? d.items : [emptyItem()],
+          nextMeetingDate: d.nextMeetingDate ?? '',
+          nextMeetingLocation: d.nextMeetingLocation ?? '',
+        });
+      } else {
         setData(defaultData());
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      }
+      if (agendaData?.items?.length) {
+        setAgendaItems(agendaData.items);
+      }
+    }).catch((err) => {
+      console.error('Error fetching minutes/agenda:', err);
+      setData(defaultData());
+    }).finally(() => {
+      setLoading(false);
+    });
   }, [meeting._id]);
 
   async function save() {
@@ -103,7 +113,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   function openEmailModal() {
     setEmailTo('');
     setEmailSubject(`Minutes of Meeting — ${meeting?.name || 'Meeting'}`);
-    setEmailBody(getMinutesTextSummary(meeting, data, false));
+    setEmailBody(getMinutesTextSummary(meeting, data, false, undefined, agendaItems));
     setEmailError(null);
     setEmailSuccess(false);
     setIsEmailModalOpen(true);
@@ -112,7 +122,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   function shareEmail() {
     const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile && typeof navigator.canShare === "function") {
-      shareMinutesPdf(meeting, data, 'email');
+      shareMinutesPdf(meeting, data, 'email', agendaItems);
     } else {
       openEmailModal();
     }
@@ -128,7 +138,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
     setEmailError(null);
 
     try {
-      const pdfBase64 = getMinutesPdfBase64(meeting, data);
+      const pdfBase64 = getMinutesPdfBase64(meeting, data, agendaItems);
       const filename = `Minutes - ${meeting?.name || 'Meeting'}.pdf`;
 
       const res = await fetch('/api/share/email', {
@@ -149,7 +159,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
         setEmailError(`${resData.message || 'Failed to send email'}. Falling back to your local email client...`);
         setTimeout(() => {
           setIsEmailModalOpen(false);
-          shareMinutesPdf(meeting, data, 'email');
+          shareMinutesPdf(meeting, data, 'email', agendaItems);
         }, 3000);
       } else {
         setEmailSuccess(true);
@@ -162,7 +172,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
       setEmailError(err instanceof Error ? err.message : 'Failed to send email. Falling back to local client...');
       setTimeout(() => {
         setIsEmailModalOpen(false);
-        shareMinutesPdf(meeting, data, 'email');
+        shareMinutesPdf(meeting, data, 'email', agendaItems);
       }, 3000);
     } finally {
       setEmailSending(false);
@@ -170,13 +180,13 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   }
 
   async function shareWhatsApp() {
-    const pdfBase64 = getMinutesPdfBase64(meeting, data);
+    const pdfBase64 = getMinutesPdfBase64(meeting, data, agendaItems);
     // Ensure latest PDF is saved on server
     try {
       await fetch(`/api/minutes/${meeting._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, pdfBase64: getMinutesPdfBase64(meeting, data) }),
+        body: JSON.stringify({ ...data, pdfBase64: getMinutesPdfBase64(meeting, data, agendaItems) }),
       });
     } catch (e) {
       console.error('Failed to upload latest PDF version to server', e);
@@ -186,16 +196,16 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
     const pdfUrl = typeof window !== 'undefined' && meeting._id
       ? `${window.location.origin}/api/share/pdf/${meeting._id}`
       : '';
-    const bodyText = getMinutesTextSummary(meeting, data, true, pdfUrl);
+    const bodyText = getMinutesTextSummary(meeting, data, true, pdfUrl, agendaItems);
 
     const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     if (isMobile && typeof navigator.canShare === 'function') {
       // Mobile: use native share sheet (PDF will be attached automatically)
-      shareMinutesPdf(meeting, data, 'whatsapp');
+      shareMinutesPdf(meeting, data, 'whatsapp', agendaItems);
     } else {
       // Desktop: try native OS share with PDF if supported (Web Share API Level 2)
-      const pdfBase64 = getMinutesPdfBase64(meeting, data);
+      const pdfBase64 = getMinutesPdfBase64(meeting, data, agendaItems);
       const byteCharacters = atob(pdfBase64);
       const byteNumbers = new Uint8Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -272,7 +282,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
                 WhatsApp
               </button>
               <button
-                onClick={() => downloadMinutesPdf(meeting, data)}
+                onClick={() => downloadMinutesPdf(meeting, data, agendaItems)}
                 className="bg-blue-900 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-800 transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -309,6 +319,29 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Purpose of Meeting */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-4">Purpose of Meeting</h3>
+            <textarea
+              value={data.purpose || ''}
+              onChange={(e) => setData((d) => ({ ...d, purpose: e.target.value }))}
+              placeholder="Describe the purpose of this meeting..."
+              rows={3}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+          </div>
+
+          {/* Department */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-4">Department</h3>
+            <input
+              value={data.department || ''}
+              onChange={(e) => setData((d) => ({ ...d, department: e.target.value }))}
+              placeholder="e.g. Finance, HR, Operations"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
           </div>
 
           {/* Attendees */}
@@ -441,7 +474,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
         </div>
       )}
 
-      {view === 'preview' && <MinutesPreview meeting={meeting} data={data} />}
+      {view === 'preview' && <MinutesPreview meeting={meeting} data={data} agendaItems={agendaItems} />}
 
       {/* Email Modal */}
       {isEmailModalOpen && (

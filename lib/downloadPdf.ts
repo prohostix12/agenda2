@@ -12,6 +12,7 @@ export interface Attendee { name: string; designation: string; }
 export interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
 export interface MinutesData {
   meetingType: string; meetingReference: string;
+  purpose?: string; department?: string;
   attendees: Attendee[]; items: MinutesItem[];
   nextMeetingDate: string; nextMeetingLocation: string;
 }
@@ -140,7 +141,7 @@ export function downloadAgendaPdf(meeting: Meeting, items: AgendaItem[]) {
   pdf.save(`Agenda - ${meeting?.name || 'Meeting'}.pdf`);
 }
 
-function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
+function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: AgendaItem[] = []): jsPDF {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const LM = 15;
   const LW = 210 - 2 * LM; // 180
@@ -153,10 +154,18 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
   const leftW = LW * 0.55;
   const rightW = LW - leftW;
   const rowH = 7.5;
-  const headerH = 4 * rowH;
+  const metaLines = [
+    [`Types of Meeting`, data.meetingType || '—'],
+    [`Meeting Reference`, data.meetingReference || '—'],
+    ...(data.department ? [[`Department`, data.department]] : []),
+    [`Meeting Venue`, meeting?.location || '—'],
+    [`Date & Time`, fmtShort(meeting?.date)],
+  ];
+  const metaCount = metaLines.length;
+  const headerH = metaCount * rowH;
 
   pdf.rect(LM, y, leftW, headerH);
-  for(let i=0; i<4; i++) {
+  for(let i=0; i<metaCount; i++) {
     pdf.rect(LM + leftW, y + (i*rowH), rightW, rowH);
   }
 
@@ -164,24 +173,79 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(12);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(meeting?.name?.toUpperCase() || 'MEETING', LM + leftW / 2, y + 12, { align: 'center' });
-  pdf.text('MINUTES OF MEETING', LM + leftW / 2, y + 20, { align: 'center' });
+  pdf.text(meeting?.name?.toUpperCase() || 'MEETING', LM + leftW / 2, y + headerH / 2 - 4, { align: 'center' });
+  pdf.text('MINUTES OF MEETING', LM + leftW / 2, y + headerH / 2 + 4, { align: 'center' });
 
   // Right Content
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
-  const metaLines = [
-    [`Types of Meeting`, data.meetingType || '—'],
-    [`Meeting Reference`, data.meetingReference || '—'],
-    [`Meeting Venue`, meeting?.location || '—'],
-    [`Date & Time`, fmtShort(meeting?.date)],
-  ];
   metaLines.forEach(([label, value], i) => {
     pdf.text(`${label}`, LM + leftW + 2, y + (i * rowH) + 5.5);
     pdf.text(`: ${value}`, LM + leftW + 32, y + (i * rowH) + 5.5);
   });
 
-  y += headerH; // Stack exactly at the bottom of the header
+  y += headerH;
+
+  // --- Purpose of Meeting ---
+  if (data.purpose) {
+    y = check(pdf, y, 20);
+    
+    // Header
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(LM, y, LW, 8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Purpose of Meeting', LM + 2, y + 5.5);
+    y += 8;
+
+    // Content
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    const splitPurpose = pdf.splitTextToSize(data.purpose, LW - 4);
+    const purposeHeight = splitPurpose.length * 5 + 4;
+    pdf.rect(LM, y, LW, purposeHeight);
+    pdf.text(splitPurpose, LM + 2, y + 5);
+    y += purposeHeight;
+  }
+
+  // --- Agenda table ---
+  const agenda = agendaItems.filter((a) => a.title.trim());
+  if (agenda.length > 0) {
+    y = check(pdf, y, 20);
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(LM, y, LW, 8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Agenda', LM + 2, y + 5.5);
+    y += 8;
+
+    autoTable(pdf, {
+      startY: y,
+      theme: 'grid',
+      head: [['SL NO', 'Agenda Item', 'Presenter(s)', 'Duration']],
+      body: agenda.map((a) => [
+        String(a.order),
+        a.description?.trim() ? `${a.title}\n${a.description}` : a.title,
+        a.presenters?.filter((p) => p.trim()).join(', ') || '—',
+        a.duration || '—',
+      ]),
+      columnStyles: {
+        0: { cellWidth: 15, halign: 'center' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 20, halign: 'center' },
+      },
+      headStyles: { fillColor: [249, 250, 251], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9, lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center' },
+      bodyStyles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.3, valign: 'top' },
+      margin: { left: LM, right: LM },
+      tableWidth: LW,
+    });
+    y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+  }
 
   // --- Attendees row ---
   pdf.rect(LM, y, LW, 8);
@@ -318,15 +382,16 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData): jsPDF {
   return pdf;
 }
 
-export function downloadMinutesPdf(meeting: Meeting, data: MinutesData) {
-  buildMinutesPdf(meeting, data).save(`Minutes - ${meeting?.name || 'Meeting'}.pdf`);
+export function downloadMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: AgendaItem[] = []) {
+  buildMinutesPdf(meeting, data, agendaItems).save(`Minutes - ${meeting?.name || 'Meeting'}.pdf`);
 }
 
 export function getMinutesTextSummary(
   meeting: Meeting,
   data: MinutesData,
   isWhatsApp: boolean,
-  pdfUrl?: string
+  pdfUrl?: string,
+  agendaItems: AgendaItem[] = []
 ): string {
   const lines: string[] = [];
 
@@ -341,7 +406,25 @@ export function getMinutesTextSummary(
   if (meeting?.chairperson) lines.push(`Chairperson: ${meeting.chairperson}`);
   if (data.meetingType) lines.push(`Meeting Type: ${data.meetingType}`);
   if (data.meetingReference) lines.push(`Reference No: ${data.meetingReference}`);
+  if (data.department) lines.push(`Department: ${data.department}`);
+  if (data.purpose) lines.push(`Purpose: ${data.purpose}`);
   lines.push('');
+
+  const agenda = agendaItems.filter((a) => a.title.trim());
+  if (agenda.length > 0) {
+    if (isWhatsApp) {
+      lines.push(`*AGENDA:*`);
+    } else {
+      lines.push(`AGENDA:`);
+    }
+    agenda.forEach((a) => {
+      lines.push(`${a.order}. ${a.title}${a.duration ? ` (${a.duration})` : ''}`);
+      if (a.presenters?.filter(p => p.trim()).length) {
+        lines.push(`   Presenter(s): ${a.presenters.filter(p => p.trim()).join(', ')}`);
+      }
+    });
+    lines.push('');
+  }
 
   const attendees = data.attendees.filter((a) => a.name.trim());
   if (attendees.length > 0) {
@@ -397,8 +480,8 @@ export function getMinutesTextSummary(
   return lines.join('\n');
 }
 
-export function getMinutesPdfBase64(meeting: Meeting, data: MinutesData): string {
-  const pdf = buildMinutesPdf(meeting, data);
+export function getMinutesPdfBase64(meeting: Meeting, data: MinutesData, agendaItems: AgendaItem[] = []): string {
+  const pdf = buildMinutesPdf(meeting, data, agendaItems);
   const dataUri = pdf.output('datauristring');
   return dataUri.split(',')[1];
 }
@@ -406,9 +489,10 @@ export function getMinutesPdfBase64(meeting: Meeting, data: MinutesData): string
 export async function shareMinutesPdf(
   meeting: Meeting,
   data: MinutesData,
-  via: 'email' | 'whatsapp'
+  via: 'email' | 'whatsapp',
+  agendaItems: AgendaItem[] = []
 ) {
-  const pdf = buildMinutesPdf(meeting, data);
+  const pdf = buildMinutesPdf(meeting, data, agendaItems);
   const filename = `Minutes - ${meeting?.name || 'Meeting'}.pdf`;
 
   // Web Share API works well on mobile, but on Windows Desktop it often creates an empty "no_name" file
@@ -438,7 +522,7 @@ export async function shareMinutesPdf(
     ? `${window.location.origin}/api/share/pdf/${meeting._id}`
     : undefined;
 
-  const bodyText = getMinutesTextSummary(meeting, data, isWhatsApp, pdfUrl);
+  const bodyText = getMinutesTextSummary(meeting, data, isWhatsApp, pdfUrl, agendaItems);
 
   if (via === 'email') {
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`);

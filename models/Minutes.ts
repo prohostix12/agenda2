@@ -16,6 +16,8 @@ export interface IMinutes extends Document {
   meetingId: mongoose.Types.ObjectId;
   meetingType?: string;
   meetingReference?: string;
+  purpose?: string;
+  department?: string;
   attendees: IAttendee[];
   items: IMinutesItem[];
   nextMeetingDate?: string;
@@ -48,6 +50,8 @@ const MinutesSchema = new Schema<IMinutes>(
     meetingId: { type: Schema.Types.ObjectId, ref: 'Meeting', required: true, unique: true },
     meetingType: { type: String, trim: true },
     meetingReference: { type: String, trim: true },
+    purpose: { type: String, trim: true },
+    department: { type: String, trim: true },
     attendees: { type: [AttendeeSchema], default: [] },
     items: { type: [MinutesItemSchema], default: [] },
     nextMeetingDate: { type: String },

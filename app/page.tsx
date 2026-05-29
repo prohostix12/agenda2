@@ -18,6 +18,8 @@ export default function Dashboard() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     const loadMeetings = async () => {
@@ -48,6 +50,36 @@ export default function Dashboard() {
     if (!confirm(`Delete "${name}"? This will also remove its agenda and minutes.`)) return;
     await fetch(`/api/meetings/${id}`, { method: 'DELETE' });
     setMeetings((prev) => prev.filter((m) => m._id !== id));
+  }
+
+  function startEdit(meeting: Meeting) {
+    setEditingId(meeting._id);
+    setEditingName(meeting.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingName('');
+  }
+
+  async function saveName(id: string) {
+    const trimmed = editingName.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/meetings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setMeetings((prev) =>
+          prev.map((m) => (m._id === id ? { ...m, name: trimmed } : m))
+        );
+      }
+    } finally {
+      setEditingId(null);
+      setEditingName('');
+    }
   }
 
   return (
@@ -113,7 +145,40 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{meeting.name}</h2>
+                  {editingId === meeting._id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveName(meeting._id);
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        className="text-lg font-semibold text-gray-900 border border-blue-300 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                      <button
+                        onClick={() => saveName(meeting._id)}
+                        className="text-green-600 hover:text-green-700 p-1 rounded transition-colors"
+                        title="Save name"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
+                        title="Cancel"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <h2 className="text-lg font-semibold text-gray-900">{meeting.name}</h2>
+                  )}
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                     <span>{format(parseLocalDate(meeting.date), 'EEEE, dd MMMM yyyy')}</span>
                     {meeting.location && <span>&bull; {meeting.location}</span>}
@@ -123,6 +188,15 @@ export default function Dashboard() {
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => startEdit(meeting)}
+                  className="text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                  title="Edit meeting name"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
+                  </svg>
+                </button>
                 <Link
                   href={`/meetings/${meeting._id}`}
                   className="bg-blue-50 text-blue-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
@@ -134,7 +208,7 @@ export default function Dashboard() {
                   className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
                   title="Delete meeting"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>

@@ -31,6 +31,23 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await connectDB();
+    const { id } = await params;
+    const { name } = await req.json();
+    if (!name || typeof name !== 'string') {
+      return NextResponse.json({ error: 'Invalid name' }, { status: 400 });
+    }
+    const meeting = await Meeting.findByIdAndUpdate(id, { name: name.trim() }, { returnDocument: 'after' });
+    if (!meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(meeting);
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'Failed to update meeting name' }, { status: 500 });
+  }
+}
+
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
