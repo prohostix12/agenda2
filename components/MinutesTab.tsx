@@ -5,13 +5,13 @@ import MinutesPreview from './MinutesPreview';
 import { downloadMinutesPdf, shareMinutesPdf, getMinutesPdfBase64, getMinutesTextSummary } from '@/lib/downloadPdf';
 
 interface Attendee { name: string; designation: string; }
-interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
+interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string;
   meetingReference: string;
   purpose: string;
-  department: string;
+  departments: string[];   // array — shows as numbered list in preview/PDF
   attendees: Attendee[];
   items: MinutesItem[];
   nextMeetingDate: string;
@@ -22,12 +22,12 @@ interface Meeting {
 }
 
 const emptyAttendee = (): Attendee => ({ name: '', designation: '' });
-const emptyItem = (): MinutesItem => ({ subject: '', actionBy: '', dateOfAction: '', remarks: '' });
+const emptyItem = (): MinutesItem => ({ subject: '', actionBy: '', dateOfAction: '', remarks: '', followedUp: false });
 const defaultData = (): MinutesData => ({
   meetingType: 'OFFICE',
   meetingReference: '',
   purpose: '',
-  department: '',
+  departments: [''],
   attendees: [emptyAttendee()],
   items: [emptyItem()],
   nextMeetingDate: '',
@@ -61,7 +61,10 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
           meetingType: d.meetingType ?? 'OFFICE',
           meetingReference: d.meetingReference ?? '',
           purpose: d.purpose ?? '',
-          department: d.department ?? '',
+          // Backward compat: old docs store a single string in `department`
+          departments: d.departments?.length ? d.departments
+                      : d.department ? [d.department]
+                      : [''],
           attendees: d.attendees?.length ? d.attendees : [emptyAttendee()],
           items: d.items?.length ? d.items : [emptyItem()],
           nextMeetingDate: d.nextMeetingDate ?? '',
@@ -108,6 +111,14 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   function addItem() { setData((d) => ({ ...d, items: [...d.items, emptyItem()] })); }
   function removeItem(i: number) {
     setData((d) => ({ ...d, items: d.items.filter((_, idx) => idx !== i) }));
+  }
+  function toggleFollowedUp(i: number) {
+    setData((d) => ({
+      ...d,
+      items: d.items.map((item, idx) =>
+        idx === i ? { ...item, followedUp: !item.followedUp } : item
+      ),
+    }));
   }
 
   function openEmailModal() {
@@ -333,15 +344,49 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
             />
           </div>
 
-          {/* Department */}
+          {/* Departments */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h3 className="font-bold text-gray-800 mb-4">Department</h3>
-            <input
-              value={data.department || ''}
-              onChange={(e) => setData((d) => ({ ...d, department: e.target.value }))}
-              placeholder="e.g. Finance, HR, Operations"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
+            <h3 className="font-bold text-gray-800 mb-4">Department(s)</h3>
+            <div className="space-y-2">
+              {data.departments.map((dept, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-400 w-5 shrink-0 text-right">{i + 1}.</span>
+                  <input
+                    value={dept}
+                    onChange={(e) => {
+                      const next = [...data.departments];
+                      next[i] = e.target.value;
+                      setData((d) => ({ ...d, departments: next }));
+                    }}
+                    placeholder={`e.g. Finance`}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setData((d) => ({ ...d, departments: d.departments.filter((_, idx) => idx !== i) }))
+                    }
+                    disabled={data.departments.length === 1}
+                    className="text-red-400 hover:text-red-600 disabled:opacity-30 p-1"
+                    title="Remove"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setData((d) => ({ ...d, departments: [...d.departments, ''] }))}
+                className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1 mt-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Department
+              </button>
+            </div>
           </div>
 
           {/* Attendees */}
@@ -390,15 +435,68 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
             </div>
             <div className="p-4 space-y-3">
               {data.items.map((item, i) => (
-                <div key={i} className="border border-gray-200 rounded-xl p-4">
+                <div key={i} className={`rounded-xl p-4 border transition-colors ${
+                  item.followedUp
+                    ? 'border-green-300 bg-green-50'
+                    : 'border-gray-200 bg-white'
+                }`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="w-6 h-6 bg-blue-900 text-white rounded-full flex items-center justify-center text-xs font-bold">{i + 1}</span>
-                    <button onClick={() => removeItem(i)} disabled={data.items.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 text-xs flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Remove
-                    </button>
+                    {/* Number + status badge */}
+                    <div className="flex items-center gap-2">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                        item.followedUp ? 'bg-green-500' : 'bg-blue-900'
+                      }`}>{i + 1}</span>
+                      {item.followedUp && (
+                        <span className="text-[11px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Followed Up
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2">
+                      {/* Follow-up toggle */}
+                      <button
+                        type="button"
+                        onClick={() => toggleFollowedUp(i)}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${
+                          item.followedUp
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+                            : 'bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700 border border-gray-200'
+                        }`}
+                      >
+                        {item.followedUp ? (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Done — Undo
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Mark as Done
+                          </>
+                        )}
+                      </button>
+
+                      {/* Remove */}
+                      <button onClick={() => removeItem(i)} disabled={data.items.length === 1}
+                        className="text-red-400 hover:text-red-600 disabled:opacity-30 text-xs flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3">
+
+                  <div className={`grid grid-cols-1 gap-3 ${item.followedUp ? 'opacity-60' : ''}`}>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject / Discussion *</label>
                       <textarea
@@ -412,30 +510,20 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Action By</label>
-                        <input
-                          value={item.actionBy}
-                          onChange={(e) => updateItem(i, 'actionBy', e.target.value)}
+                        <input value={item.actionBy} onChange={(e) => updateItem(i, 'actionBy', e.target.value)}
                           placeholder="Person responsible"
-                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
+                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date of Action</label>
-                        <input
-                          type="date"
-                          value={item.dateOfAction}
-                          onChange={(e) => updateItem(i, 'dateOfAction', e.target.value)}
-                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
+                        <input type="date" value={item.dateOfAction} onChange={(e) => updateItem(i, 'dateOfAction', e.target.value)}
+                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remarks</label>
-                        <input
-                          value={item.remarks}
-                          onChange={(e) => updateItem(i, 'remarks', e.target.value)}
+                        <input value={item.remarks} onChange={(e) => updateItem(i, 'remarks', e.target.value)}
                           placeholder="Remarks..."
-                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
+                          className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                       </div>
                     </div>
                   </div>

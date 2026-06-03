@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
-import GoogleCalendarButton from '@/components/GoogleCalendarButton';
+import NotificationBell from '@/components/NotificationBell';
+import DeadlineToast from '@/components/DeadlineToast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,8 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div className="text-blue-200 text-xs">Agenda &amp; Minutes System</div>
               </div>
             </Link>
-            <div className="flex items-center gap-4">
-              <GoogleCalendarButton />
+            <div className="flex items-center gap-3">
+              <NotificationBell />
               <Link
                 href="/meetings/new"
                 className="bg-white text-blue-900 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-50 transition-colors"
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
         <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+        <DeadlineToast />
         <footer className="border-t border-gray-200 mt-16 py-6 text-center text-gray-400 text-sm print:hidden">
           Meeting Manager &mdash; Agenda &amp; Minutes System
         </footer>

@@ -4,11 +4,11 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 
 interface Attendee { name: string; designation: string; }
-interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
+interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string; meetingReference: string;
-  purpose: string; department: string;
+  purpose: string; departments: string[];
   attendees: Attendee[]; items: MinutesItem[];
   nextMeetingDate: string; nextMeetingLocation: string;
 }
@@ -55,10 +55,14 @@ export default function MinutesPreview({ meeting, data, agendaItems = [] }: { me
                 <span className="font-semibold w-36 shrink-0">Meeting Reference</span>
                 <span>: {data.meetingReference || '—'}</span>
               </div>
-              {data.department && (
+              {data.departments?.filter(d => d.trim()).length > 0 && (
                 <div className="flex gap-2">
                   <span className="font-semibold w-36 shrink-0">Department</span>
-                  <span>: {data.department}</span>
+                  <span>
+                    : {data.departments.filter(d => d.trim()).map((d, i) => (
+                      <span key={i} className="block">{i + 1}. {d}</span>
+                    ))}
+                  </span>
                 </div>
               )}
               <div className="flex gap-2">
@@ -156,10 +160,18 @@ export default function MinutesPreview({ meeting, data, agendaItems = [] }: { me
             </thead>
             <tbody>
               {items.map((item, i) => (
-                <tr key={i}>
+                <tr key={i} className={item.followedUp ? 'bg-green-50' : ''}>
                   <td className="border border-gray-600 px-3 py-3 align-top font-medium">{i + 1}</td>
                   <td className="border border-gray-600 px-3 py-3 align-top">
                     <SubjectLines text={item.subject} />
+                    {item.followedUp && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Followed Up
+                      </span>
+                    )}
                   </td>
                   <td className="border border-gray-600 px-3 py-3 align-top font-semibold">{item.actionBy || ''}</td>
                   <td className="border border-gray-600 px-3 py-3 align-top">

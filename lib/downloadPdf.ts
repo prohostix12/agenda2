@@ -12,7 +12,7 @@ export interface Attendee { name: string; designation: string; }
 export interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; }
 export interface MinutesData {
   meetingType: string; meetingReference: string;
-  purpose?: string; department?: string;
+  purpose?: string; department?: string; departments?: string[];
   attendees: Attendee[]; items: MinutesItem[];
   nextMeetingDate: string; nextMeetingLocation: string;
 }
@@ -157,7 +157,12 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
   const metaLines = [
     [`Types of Meeting`, data.meetingType || '—'],
     [`Meeting Reference`, data.meetingReference || '—'],
-    ...(data.department ? [[`Department`, data.department]] : []),
+    ...(() => {
+      const depts = (data.departments ?? []).filter(d => d.trim());
+      if (!depts.length && data.department) return [[`Department`, data.department]];
+      if (!depts.length) return [];
+      return depts.map((d, i) => [`${i === 0 ? 'Department' : ''}`, `${i + 1}. ${d}`]);
+    })(),
     [`Meeting Venue`, meeting?.location || '—'],
     [`Date & Time`, fmtShort(meeting?.date)],
   ];
@@ -406,7 +411,9 @@ export function getMinutesTextSummary(
   if (meeting?.chairperson) lines.push(`Chairperson: ${meeting.chairperson}`);
   if (data.meetingType) lines.push(`Meeting Type: ${data.meetingType}`);
   if (data.meetingReference) lines.push(`Reference No: ${data.meetingReference}`);
-  if (data.department) lines.push(`Department: ${data.department}`);
+  const deptList = (data.departments ?? []).filter(d => d.trim());
+  if (deptList.length) lines.push(`Department: ${deptList.join(', ')}`);
+  else if (data.department) lines.push(`Department: ${data.department}`);
   if (data.purpose) lines.push(`Purpose: ${data.purpose}`);
   lines.push('');
 
