@@ -29,7 +29,8 @@ const emptyItem = (): AgendaItem => ({
   presenters: [''],
 });
 
-export default function AgendaTab({ meeting }: { meeting: Meeting }) {
+export default function AgendaTab({ meeting, companySlug }: { meeting: Meeting; companySlug?: string }) {
+  const apiBase = companySlug ? `/api/${companySlug}` : '/api';
   const [items, setItems] = useState<AgendaItem[]>([emptyItem()]);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
@@ -37,7 +38,7 @@ export default function AgendaTab({ meeting }: { meeting: Meeting }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/agenda/${meeting._id}`)
+    fetch(`${apiBase}/agenda/${meeting._id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.items && data.items.length > 0) {
@@ -114,7 +115,7 @@ export default function AgendaTab({ meeting }: { meeting: Meeting }) {
 
   async function save() {
     setSaving(true);
-    await fetch(`/api/agenda/${meeting._id}`, {
+    await fetch(`${apiBase}/agenda/${meeting._id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),

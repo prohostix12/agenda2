@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Connection } from 'mongoose';
 
 export interface IMeeting extends Document {
   name: string;
@@ -20,7 +20,6 @@ const MeetingSchema = new Schema<IMeeting>(
   { timestamps: true }
 );
 
-const Meeting: Model<IMeeting> =
-  mongoose.models.Meeting ?? mongoose.model<IMeeting>('Meeting', MeetingSchema);
-
-export default Meeting;
+export function getMeetingModel(conn: Connection): Model<IMeeting> {
+  return conn.models.Meeting ?? conn.model<IMeeting>('Meeting', MeetingSchema);
+}

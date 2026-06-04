@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Connection, Types } from 'mongoose';
 
 export interface IAttendee {
   name: string;
@@ -14,12 +14,12 @@ export interface IMinutesItem {
 }
 
 export interface IMinutes extends Document {
-  meetingId: mongoose.Types.ObjectId;
+  meetingId: Types.ObjectId;
   meetingType?: string;
   meetingReference?: string;
   purpose?: string;
-  department?: string;       // legacy single-value field (kept for backward compat)
-  departments?: string[];    // new multi-value field
+  department?: string;
+  departments?: string[];
   attendees: IAttendee[];
   items: IMinutesItem[];
   nextMeetingDate?: string;
@@ -30,10 +30,7 @@ export interface IMinutes extends Document {
 }
 
 const AttendeeSchema = new Schema<IAttendee>(
-  {
-    name: { type: String, default: '' },
-    designation: { type: String, default: '' },
-  },
+  { name: { type: String, default: '' }, designation: { type: String, default: '' } },
   { _id: false }
 );
 
@@ -65,10 +62,6 @@ const MinutesSchema = new Schema<IMinutes>(
   { timestamps: true }
 );
 
-// Always delete the cached model so schema changes (like new fields) are always picked up.
-// Safe in production (runs once at startup) and fixes Next.js hot-reload schema drift in dev.
-delete (mongoose.models as Record<string, unknown>).Minutes;
-const Minutes: Model<IMinutes> = mongoose.model<IMinutes>('Minutes', MinutesSchema);
-
-export default Minutes;
-
+export function getMinutesModel(conn: Connection): Model<IMinutes> {
+  return conn.models.Minutes ?? conn.model<IMinutes>('Minutes', MinutesSchema);
+}

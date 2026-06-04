@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface NotifItem {
   meetingId: string;
@@ -15,13 +16,17 @@ interface NotifItem {
 const AUTO_DISMISS_MS = 8000;
 
 export default function DeadlineToast() {
+  const pathname = usePathname();
+  const company = pathname?.split('/').filter(Boolean)[0] ?? null;
+
   const [items, setItems] = useState<NotifItem[]>([]);
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    fetch('/api/notifications')
+    if (!company) return;
+    fetch(`/api/${company}/notifications`)
       .then((r) => r.json())
       .then((data: NotifItem[]) => {
         if (!Array.isArray(data)) return;

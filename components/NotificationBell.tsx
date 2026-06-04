@@ -2,6 +2,15 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+/** Extract company slug from pathname like /iits/meetings/... → "iits" */
+function companyFromPath(path: string): string | null {
+  const seg = path.split('/').filter(Boolean)[0];
+  // Skip reserved Next.js segments and the legacy root
+  if (!seg || seg.startsWith('api') || seg.startsWith('_')) return null;
+  return seg;
+}
 
 interface NotifItem {
   meetingId: string;
@@ -33,22 +42,26 @@ function formatDate(d: string) {
 }
 
 export default function NotificationBell() {
+  const pathname = usePathname();
+  const company = pathname?.split('/').filter(Boolean)[0] ?? null;
+  const apiUrl = company ? `/api/${company}/notifications` : null;
+
   const [allItems, setAllItems] = useState<NotifItem[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Bell shows only TODAY's deadline items that are not yet followed up
   const dueItems = allItems.filter((i) => i.daysLeft === 0 && !i.followedUp);
   const count = dueItems.length;
 
   const load = useCallback(() => {
-    fetch('/api/notifications')
+    if (!apiUrl) return;
+    fetch(apiUrl)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setAllItems(data);
       })
       .catch(() => {});
-  }, []);
+  }, [apiUrl]);
 
   useEffect(() => {
     load();

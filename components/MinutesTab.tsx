@@ -34,7 +34,8 @@ const defaultData = (): MinutesData => ({
   nextMeetingLocation: '',
 });
 
-export default function MinutesTab({ meeting }: { meeting: Meeting }) {
+export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting; companySlug?: string }) {
+  const apiBase = companySlug ? `/api/${companySlug}` : '/api';
   const [data, setData] = useState<MinutesData>(defaultData());
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
@@ -53,8 +54,8 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/minutes/${meeting._id}`).then((r) => r.json()).catch(() => null),
-      fetch(`/api/agenda/${meeting._id}`).then((r) => r.json()).catch(() => null),
+      fetch(`${apiBase}/minutes/${meeting._id}`).then((r) => r.json()).catch(() => null),
+      fetch(`${apiBase}/agenda/${meeting._id}`).then((r) => r.json()).catch(() => null),
     ]).then(([d, agendaData]) => {
       if (d && d._id) {
         setData({
@@ -87,7 +88,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
   async function save() {
     setSaving(true);
     const pdfBase64 = getMinutesPdfBase64(meeting, data);
-    await fetch(`/api/minutes/${meeting._id}`, {
+    await fetch(`${apiBase}/minutes/${meeting._id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, pdfBase64 }),
@@ -152,7 +153,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
       const pdfBase64 = getMinutesPdfBase64(meeting, data, agendaItems);
       const filename = `Minutes - ${meeting?.name || 'Meeting'}.pdf`;
 
-      const res = await fetch('/api/share/email', {
+      const res = await fetch(`${apiBase}/share/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,7 +195,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
     const pdfBase64 = getMinutesPdfBase64(meeting, data, agendaItems);
     // Ensure latest PDF is saved on server
     try {
-      await fetch(`/api/minutes/${meeting._id}`, {
+      await fetch(`${apiBase}/minutes/${meeting._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, pdfBase64: getMinutesPdfBase64(meeting, data, agendaItems) }),
@@ -205,7 +206,7 @@ export default function MinutesTab({ meeting }: { meeting: Meeting }) {
 
     // Build the text summary with hosted link
     const pdfUrl = typeof window !== 'undefined' && meeting._id
-      ? `${window.location.origin}/api/share/pdf/${meeting._id}`
+      ? `${window.location.origin}${apiBase}/share/pdf/${meeting._id}`
       : '';
     const bodyText = getMinutesTextSummary(meeting, data, true, pdfUrl, agendaItems);
 

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Connection, Types } from 'mongoose';
 
 export interface IAgendaItem {
   order: number;
@@ -9,7 +9,7 @@ export interface IAgendaItem {
 }
 
 export interface IAgenda extends Document {
-  meetingId: mongoose.Types.ObjectId;
+  meetingId: Types.ObjectId;
   items: IAgendaItem[];
   updatedAt: Date;
 }
@@ -33,7 +33,6 @@ const AgendaSchema = new Schema<IAgenda>(
   { timestamps: true }
 );
 
-const Agenda: Model<IAgenda> =
-  mongoose.models.Agenda ?? mongoose.model<IAgenda>('Agenda', AgendaSchema);
-
-export default Agenda;
+export function getAgendaModel(conn: Connection): Model<IAgenda> {
+  return conn.models.Agenda ?? conn.model<IAgenda>('Agenda', AgendaSchema);
+}

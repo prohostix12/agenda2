@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Connection } from 'mongoose';
 
 export interface IGoogleToken extends Document {
   accessToken: string;
@@ -12,7 +12,6 @@ const GoogleTokenSchema = new Schema<IGoogleToken>({
   expiryDate: { type: Number, required: true },
 });
 
-const GoogleToken: Model<IGoogleToken> =
-  mongoose.models.GoogleToken ?? mongoose.model<IGoogleToken>('GoogleToken', GoogleTokenSchema);
-
-export default GoogleToken;
+export function getGoogleTokenModel(conn: Connection): Model<IGoogleToken> {
+  return conn.models.GoogleToken ?? conn.model<IGoogleToken>('GoogleToken', GoogleTokenSchema);
+}

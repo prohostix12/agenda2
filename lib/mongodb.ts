@@ -1,38 +1,49 @@
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI as string;
+if (!MONGODB_URI) throw new Error('Please define MONGODB_URI in .env.local');
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+// Extract the database name from the URI (e.g. "meeting-manager")
+export const DEFAULT_DB = (() => {
+  const m = MONGODB_URI.match(/\/([^/?]+)(\?|$)/);
+  return m ? m[1] : 'meeting-manager';
+})();
+
+// Company registry lives in its own database on the same cluster
+export const MASTER_DB = 'agenda-master';
+
+/** Replace the database name portion of the URI */
+function buildUri(dbName: string): string {
+  return MONGODB_URI.replace(/\/([^/?]+)(\?|$)/, `/${dbName}$2`);
 }
 
-interface MongooseCache {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
+/** Derive a database name from a company slug */
+export function dbForCompany(slug: string): string {
+  // IITS uses the original database so existing data is preserved
+  if (slug === 'iits') return DEFAULT_DB;
+  return `agenda-${slug}`;
 }
 
-declare global {
-  var mongoose: MongooseCache | undefined;
-}
+// ─── Connection cache ────────────────────────────────────────────────────────
+const connCache = new Map<string, mongoose.Connection>();
+const promiseCache = new Map<string, Promise<mongoose.Connection>>();
 
-const cached: MongooseCache = global.mongoose ?? { conn: null, promise: null };
-global.mongoose = cached;
+/**
+ * Returns a mongoose Connection for the given database name.
+ * Each database on the same Atlas cluster gets its own cached connection.
+ */
+export async function connectDB(dbName?: string): Promise<mongoose.Connection> {
+  const db = dbName ?? DEFAULT_DB;
 
-export async function connectDB() {
-  if (cached.conn) return cached.conn;
+  if (connCache.has(db)) return connCache.get(db)!;
 
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI)
-      .then((m) => {
-        cached.conn = m;
-        return m;
-      })
-      .catch((error) => {
-        cached.promise = null;
-        throw error;
-      });
+  if (!promiseCache.has(db)) {
+    const uri = buildUri(db);
+    const p = mongoose.createConnection(uri).asPromise()
+      .then(conn => { connCache.set(db, conn); return conn; })
+      .catch(err => { promiseCache.delete(db); throw err; });
+    promiseCache.set(db, p);
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  return promiseCache.get(db)!;
 }
