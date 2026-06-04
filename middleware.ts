@@ -1,31 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 
-// Slugs that are real app routes, not company slugs
-const RESERVED = new Set(['login', 'admin', 'api', '_next', 'favicon.ico', 'public']);
+const SECRET = process.env.AUTH_SECRET ?? 'mom-fallback-secret-change-in-production';
+const RESERVED = new Set(['login', 'admin', 'api', '_next', 'favicon.ico']);
 
-export function middleware(req: NextRequest) {
+// ── Web Crypto helpers (Edge-compatible, no Node.js crypto) ──────────────────
+
+function base64urlDecode(str: string): Uint8Array {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+}
+
+async function verifySession(token: string): Promise<{ role: string; slug?: string; name: string; exp: number } | null> {
+  try {
+    const dot = token.lastIndexOf('.');
+    if (dot < 0) return null;
+
+    const data = token.slice(0, dot);
+    const sig  = token.slice(dot + 1);
+
+    // Import HMAC key from the secret
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    // Verify signature
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64urlDecode(sig),
+      new TextEncoder().encode(data)
+    );
+    if (!valid) return null;
+
+    // Decode payload
+    const payload = JSON.parse(new TextDecoder().decode(base64urlDecode(data)));
+    if (Date.now() > payload.exp) return null;
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow Next.js internals and static files
+  // Always pass Next.js internals and static files
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+    return NextResponse.next();
+  }
+
+  // Public: login page + auth API
   if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/public')
+    pathname === '/login' ||
+    pathname.startsWith('/login?') ||
+    pathname.startsWith('/api/auth/login') ||
+    pathname.startsWith('/api/auth/logout')
   ) {
     return NextResponse.next();
   }
 
-  // Public routes — no auth needed
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth/login') || pathname.startsWith('/api/auth/logout')) {
-    return NextResponse.next();
-  }
+  // Read and verify session cookie
+  const token   = req.cookies.get('mom_session')?.value ?? '';
+  const session = token ? await verifySession(token) : null;
 
-  // Read session cookie
-  const token = req.cookies.get('mom_session')?.value;
-  const session = token ? verifyToken(token) : null;
-
-  // Not logged in → redirect to login
+  // Not authenticated → redirect to login
   if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
@@ -33,7 +80,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // /admin routes require superadmin
+  // /admin requires superadmin role
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
     if (session.role !== 'superadmin') {
       const url = req.nextUrl.clone();
@@ -43,18 +90,17 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // /api/companies requires superadmin (except GET which is used by dashboard)
-  if (pathname.startsWith('/api/companies') && req.method !== 'GET') {
+  // /api/companies mutating operations require superadmin
+  if (pathname === '/api/companies' && req.method !== 'GET') {
     if (session.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
-    return NextResponse.next();
   }
 
-  // /{company}/* — org users can only access their own slug; superadmin can access all
-  const firstSegment = pathname.split('/')[1];
-  if (firstSegment && !RESERVED.has(firstSegment)) {
-    if (session.role !== 'superadmin' && session.slug !== firstSegment) {
+  // /{company}/* — org users can only access their own slug
+  const firstSeg = pathname.split('/')[1];
+  if (firstSeg && !RESERVED.has(firstSeg)) {
+    if (session.role !== 'superadmin' && session.slug !== firstSeg) {
       const url = req.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
