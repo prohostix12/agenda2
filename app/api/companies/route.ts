@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { connectDB, MASTER_DB, DEFAULT_DB } from '@/lib/mongodb';
 import { getCompanyModel } from '@/models/Company';
-import { hashPassword, verifyToken, SESSION_COOKIE } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { hashPassword, verifyToken } from '@/lib/auth';
 
 async function getMasterConn() {
   return connectDB(MASTER_DB);
 }
 
 function requireSuperAdmin(req: Request): boolean {
-  // Check Authorization header (for server-side calls) or cookie
   const cookieHeader = req.headers.get('cookie') ?? '';
   const match = cookieHeader.match(/mom_session=([^;]+)/);
   if (!match) return false;
@@ -32,16 +30,27 @@ async function seedIITS() {
       color: 'blue',
       username: 'iits',
       passwordHash: hashPassword(defaultPass),
+      passwordPlain: defaultPass,
     });
+  } else {
+    // Backfill passwordPlain if it's missing (for docs created before this field was added)
+    const defaultPass = process.env.IITS_DEFAULT_PASS ?? 'IITS@MOM2025';
+    await Company.updateMany(
+      { passwordPlain: { $exists: false } },
+      { $set: { passwordPlain: defaultPass } }
+    );
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await seedIITS();
     const conn = await getMasterConn();
     const Company = getCompanyModel(conn);
-    const companies = await Company.find().sort({ createdAt: 1 }).select('-passwordHash');
+    const isSA = requireSuperAdmin(req);
+    // Return passwordPlain only to superadmin
+    const select = isSA ? '-passwordHash' : '-passwordHash -passwordPlain';
+    const companies = await Company.find().sort({ createdAt: 1 }).select(select);
     return NextResponse.json(companies);
   } catch (e) {
     console.error(e);
@@ -79,6 +88,7 @@ export async function POST(req: Request) {
       color: color ?? 'blue',
       username: username.trim().toLowerCase(),
       passwordHash: hashPassword(password),
+      passwordPlain: password,
     });
 
     const { passwordHash: _, ...safe } = company.toObject();
@@ -102,11 +112,14 @@ export async function PATCH(req: Request) {
     const Company = getCompanyModel(conn);
 
     const update: Record<string, string> = {};
-    if (name)        update.name = name.trim();
+    if (name)                    update.name = name.trim();
     if (description !== undefined) update.description = description;
-    if (color)       update.color = color;
-    if (username)    update.username = username.trim().toLowerCase();
-    if (password)    update.passwordHash = hashPassword(password);
+    if (color)                   update.color = color;
+    if (username)                update.username = username.trim().toLowerCase();
+    if (password) {
+      update.passwordHash  = hashPassword(password);
+      update.passwordPlain = password;
+    }
 
     const updated = await Company.findOneAndUpdate({ slug }, update, { new: true }).select('-passwordHash');
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });

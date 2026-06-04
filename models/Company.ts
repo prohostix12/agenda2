@@ -8,6 +8,7 @@ export interface ICompany extends Document {
   color: string;
   username: string;       // login username for this org
   passwordHash: string;   // scrypt hash of the password
+  passwordPlain: string;  // stored for superadmin visibility only
   createdAt: Date;
 }
 
@@ -18,8 +19,9 @@ const CompanySchema = new Schema<ICompany>(
     dbName:       { type: String, required: true, trim: true },
     description:  { type: String, trim: true },
     color:        { type: String, default: 'blue' },
-    username:     { type: String, required: true, trim: true, lowercase: true },
-    passwordHash: { type: String, required: true },
+    username:      { type: String, required: true, trim: true, lowercase: true },
+    passwordHash:  { type: String, required: true },
+    passwordPlain: { type: String, required: true },
   },
   { timestamps: true }
 );
