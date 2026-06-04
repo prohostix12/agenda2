@@ -1,7 +1,14 @@
 @import "tailwindcss";
 
 body {
-  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Inter, Arial, Helvetica, sans-serif;
+}
+
+/* MOM wordmark — Playfair Display serif for the logo text */
+.mom-wordmark {
+  font-family: var(--font-playfair), 'Playfair Display', Georgia, serif;
+  font-weight: 900;
+  letter-spacing: -0.03em;
 }
 
 @keyframes slideInRight {
