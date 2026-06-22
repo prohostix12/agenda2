@@ -11,6 +11,8 @@ export interface IMinutesItem {
   dateOfAction: string;
   remarks: string;
   followedUp?: boolean;
+  actionByPhone?: string;  // WhatsApp number with country code, e.g. +919876543210
+  actionByEmail?: string;  // Email address for reminders
 }
 
 export interface IMinutes extends Document {
@@ -36,11 +38,13 @@ const AttendeeSchema = new Schema<IAttendee>(
 
 const MinutesItemSchema = new Schema<IMinutesItem>(
   {
-    subject: { type: String, default: '' },
-    actionBy: { type: String, default: '' },
-    dateOfAction: { type: String, default: '' },
-    remarks: { type: String, default: '' },
-    followedUp: { type: Boolean, default: false },
+    subject:       { type: String, default: '' },
+    actionBy:      { type: String, default: '' },
+    dateOfAction:  { type: String, default: '' },
+    remarks:       { type: String, default: '' },
+    followedUp:    { type: Boolean, default: false },
+    actionByPhone: { type: String, trim: true },
+    actionByEmail: { type: String, trim: true },
   },
   { _id: false }
 );

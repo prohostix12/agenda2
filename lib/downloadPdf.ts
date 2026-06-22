@@ -154,24 +154,27 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
   const leftW = LW * 0.55;
   const rightW = LW - leftW;
   const rowH = 7.5;
-  const metaLines = [
-    [`Types of Meeting`, data.meetingType || '—'],
-    [`Meeting Reference`, data.meetingReference || '—'],
-    ...(() => {
-      const depts = (data.departments ?? []).filter(d => d.trim());
-      if (!depts.length && data.department) return [[`Department`, data.department]];
-      if (!depts.length) return [];
-      return depts.map((d, i) => [`${i === 0 ? 'Department' : ''}`, `${i + 1}. ${d}`]);
-    })(),
-    [`Meeting Venue`, meeting?.location || '—'],
-    [`Date & Time`, fmtShort(meeting?.date)],
+  const depts = (data.departments ?? []).filter(d => d.trim());
+  const deptText = depts.length
+    ? depts.map((d, i) => `${i + 1}. ${d}`).join('\n')
+    : data.department || '';
+  const deptLineCount = deptText ? deptText.split('\n').length : 0;
+  const deptRowH = deptLineCount > 1 ? rowH + (deptLineCount - 1) * 4 : rowH;
+
+  const metaRows: { label: string; value: string; h: number }[] = [
+    { label: 'Types of Meeting', value: data.meetingType || '—', h: rowH },
+    { label: 'Meeting Reference', value: data.meetingReference || '—', h: rowH },
+    ...(deptText ? [{ label: 'Department', value: deptText, h: deptRowH }] : []),
+    { label: 'Meeting Venue', value: meeting?.location || '—', h: rowH },
+    { label: 'Date & Time', value: fmtShort(meeting?.date), h: rowH },
   ];
-  const metaCount = metaLines.length;
-  const headerH = metaCount * rowH;
+  const headerH = metaRows.reduce((sum, r) => sum + r.h, 0);
 
   pdf.rect(LM, y, leftW, headerH);
-  for(let i=0; i<metaCount; i++) {
-    pdf.rect(LM + leftW, y + (i*rowH), rightW, rowH);
+  let rowY = y;
+  for (const row of metaRows) {
+    pdf.rect(LM + leftW, rowY, rightW, row.h);
+    rowY += row.h;
   }
 
   // Left Content
@@ -184,35 +187,39 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
   // Right Content
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
-  metaLines.forEach(([label, value], i) => {
-    pdf.text(`${label}`, LM + leftW + 2, y + (i * rowH) + 5.5);
-    pdf.text(`: ${value}`, LM + leftW + 32, y + (i * rowH) + 5.5);
-  });
+  rowY = y;
+  for (const row of metaRows) {
+    pdf.text(row.label, LM + leftW + 2, rowY + 5.5);
+    const valLines = row.value.split('\n');
+    valLines.forEach((line, li) => {
+      pdf.text(`: ${li === 0 ? '' : ' '}${line}`, LM + leftW + 32, rowY + 5.5 + li * 4);
+    });
+    rowY += row.h;
+  }
 
   y += headerH;
 
   // --- Purpose of Meeting ---
   if (data.purpose) {
-    y = check(pdf, y, 20);
-    
-    // Header
+    y = check(pdf, y, 14);
     pdf.setDrawColor(0, 0, 0);
     pdf.setLineWidth(0.3);
-    pdf.rect(LM, y, LW, 8);
+
+    const purposeLines = pdf.splitTextToSize(data.purpose, rightW - 6);
+    const purposeH = Math.max(rowH, purposeLines.length * 4.5 + 4);
+
+    pdf.rect(LM, y, leftW, purposeH);
+    pdf.rect(LM + leftW, y, rightW, purposeH);
+
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.setTextColor(0, 0, 0);
     pdf.text('Purpose of Meeting', LM + 2, y + 5.5);
-    y += 8;
 
-    // Content
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    const splitPurpose = pdf.splitTextToSize(data.purpose, LW - 4);
-    const purposeHeight = splitPurpose.length * 5 + 4;
-    pdf.rect(LM, y, LW, purposeHeight);
-    pdf.text(splitPurpose, LM + 2, y + 5);
-    y += purposeHeight;
+    pdf.setFontSize(9);
+    pdf.text(purposeLines, LM + leftW + 3, y + 5.5);
+    y += purposeH;
   }
 
   // --- Agenda table ---
@@ -252,7 +259,7 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
     y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
   }
 
-  // --- Attendees row ---
+  // --- Attendees section ---
   pdf.rect(LM, y, LW, 8);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
@@ -260,11 +267,6 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
   pdf.text('Attendees', LM + 2, y + 5.5);
   y += 8;
 
-  // --- Spacer row ---
-  pdf.rect(LM, y, LW, 5);
-  y += 5;
-
-  // --- Attendees table ---
   const attendees = data.attendees.filter((a) => a.name.trim());
   if (attendees.length > 0) {
     autoTable(pdf, {
@@ -273,7 +275,7 @@ function buildMinutesPdf(meeting: Meeting, data: MinutesData, agendaItems: Agend
       head: [['SL NO', 'Name', 'Designation']],
       body: attendees.map((a, i) => [String(i + 1), a.name, a.designation || '']),
       columnStyles: {
-        0: { cellWidth: 15, halign: 'left' },
+        0: { cellWidth: 15, halign: 'center' },
         1: { cellWidth: 82.5 },
         2: { cellWidth: 82.5 },
       },

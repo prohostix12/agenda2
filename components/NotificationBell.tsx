@@ -4,12 +4,19 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/** Extract company slug from pathname like /iits/meetings/... → "iits" */
-function companyFromPath(path: string): string | null {
-  const seg = path.split('/').filter(Boolean)[0];
-  // Skip reserved Next.js segments and the legacy root
-  if (!seg || seg.startsWith('api') || seg.startsWith('_')) return null;
-  return seg;
+const RESERVED = new Set(['login', 'admin', 'api']);
+
+/** Build the API base path for notifications based on current URL.
+ *  /{org}/{company}/... → /api/{org}/{company}
+ *  /{org}/...          → null (org panel has no notifications)
+ */
+function apiBaseFromPath(path: string): string | null {
+  const segs = path.split('/').filter(Boolean);
+  const first = segs[0];
+  if (!first || RESERVED.has(first)) return null;
+  const second = segs[1];
+  if (!second || second === 'meetings') return null; // org-level page
+  return `/api/${first}/${second}`;
 }
 
 interface NotifItem {
@@ -43,8 +50,8 @@ function formatDate(d: string) {
 
 export default function NotificationBell() {
   const pathname = usePathname();
-  const company = pathname?.split('/').filter(Boolean)[0] ?? null;
-  const apiUrl = company ? `/api/${company}/notifications` : null;
+  const apiBase = apiBaseFromPath(pathname ?? '');
+  const apiUrl = apiBase ? `${apiBase}/notifications` : null;
 
   const [allItems, setAllItems] = useState<NotifItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -158,7 +165,7 @@ export default function NotificationBell() {
                 return (
                   <Link
                     key={i}
-                    href={`/meetings/${item.meetingId}`}
+                    href={apiBase ? `${apiBase.replace('/api', '')}/meetings/${item.meetingId}` : `/meetings/${item.meetingId}`}
                     onClick={() => setOpen(false)}
                     className="flex items-start gap-3 px-4 py-3 hover:bg-blue-50 transition-colors group"
                   >

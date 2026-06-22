@@ -27,10 +27,12 @@ export function verifyPassword(password: string, stored: string): boolean {
 /* ── HMAC-signed session tokens (stored in cookie) ── */
 
 export interface SessionPayload {
-  role: 'superadmin' | 'org';
-  slug?: string;   // org slug for org sessions
-  name: string;    // display name
-  exp: number;     // Unix ms expiry
+  role: 'superadmin' | 'org' | 'company';
+  slug?: string;         // org slug
+  companySlug?: string;  // sub-company slug (role: 'company' only)
+  name: string;
+  exp: number;
+  isAdmin?: boolean;     // true when logged in via adminUsername (notification admin)
 }
 
 export function createToken(payload: SessionPayload): string {

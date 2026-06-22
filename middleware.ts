@@ -12,7 +12,7 @@ function base64urlDecode(str: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
-async function verifySession(token: string): Promise<{ role: string; slug?: string; name: string; exp: number } | null> {
+async function verifySession(token: string): Promise<{ role: string; slug?: string; companySlug?: string; name: string; exp: number; isAdmin?: boolean } | null> {
   try {
     const dot = token.lastIndexOf('.');
     if (dot < 0) return null;
@@ -33,7 +33,7 @@ async function verifySession(token: string): Promise<{ role: string; slug?: stri
     const valid = await crypto.subtle.verify(
       'HMAC',
       key,
-      base64urlDecode(sig),
+      base64urlDecode(sig) as unknown as ArrayBuffer,
       new TextEncoder().encode(data)
     );
     if (!valid) return null;
@@ -68,6 +68,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Cron routes are secured by CRON_SECRET header, not session cookies
+  if (pathname.startsWith('/api/cron/')) {
+    return NextResponse.next();
+  }
+
+  // Deadline extension request pages — public (employees have no account)
+  if (pathname.startsWith('/extend-request/') || pathname.startsWith('/api/extend-request/')) {
+    return NextResponse.next();
+  }
+
+  // Gupshup webhook — public (receives delivery status callbacks)
+  if (pathname.startsWith('/api/gupshup/')) {
+    return NextResponse.next();
+  }
+
   // Read and verify session cookie
   const token   = req.cookies.get('mom_session')?.value ?? '';
   const session = token ? await verifySession(token) : null;
@@ -80,8 +95,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // /admin requires superadmin role
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+  // /admin (exact superadmin panel) requires superadmin role
+  if (pathname === '/admin' || pathname.startsWith('/admin/') || pathname.startsWith('/api/admin')) {
     if (session.role !== 'superadmin') {
       const url = req.nextUrl.clone();
       url.pathname = '/login';
@@ -97,13 +112,37 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // /{company}/* — org users can only access their own slug
-  const firstSeg = pathname.split('/')[1];
+  const segs = pathname.split('/').filter(Boolean);
+  const firstSeg = segs[0];
+
   if (firstSeg && !RESERVED.has(firstSeg)) {
-    if (session.role !== 'superadmin' && session.slug !== firstSeg) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+    if (session.role === 'superadmin') return NextResponse.next();
+
+    if (session.role === 'company') {
+      // Company users can only access /{orgSlug}/{companySlug}/*
+      const allowed = session.slug === firstSeg && session.companySlug === segs[1];
+      if (!allowed) {
+        const url = req.nextUrl.clone();
+        url.pathname = `/${session.slug}/${session.companySlug}`;
+        return NextResponse.redirect(url);
+      }
+    } else {
+      // Org users can only access their own org slug
+      if (session.slug !== firstSeg) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
+      }
+      // Admin (notification admin) users can only access /{slug}/admin — not the management panel
+      if (session.isAdmin) {
+        const isAdminPath = segs[1] === 'admin' && segs.length === 2;
+        const isApiPath   = pathname.startsWith('/api/');
+        if (!isAdminPath && !isApiPath) {
+          const url = req.nextUrl.clone();
+          url.pathname = `/${session.slug}/admin`;
+          return NextResponse.redirect(url);
+        }
+      }
     }
   }
 

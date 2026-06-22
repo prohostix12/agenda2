@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 
 interface Attendee { name: string; designation: string; }
-interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; }
+interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; actionByPhone?: string; actionByEmail?: string; }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string; meetingReference: string;
@@ -173,7 +173,9 @@ export default function MinutesPreview({ meeting, data, agendaItems = [] }: { me
                       </span>
                     )}
                   </td>
-                  <td className="border border-gray-600 px-3 py-3 align-top font-semibold">{item.actionBy || ''}</td>
+                  <td className="border border-gray-600 px-3 py-3 align-top">
+                    <div className="font-semibold">{item.actionBy || ''}</div>
+                  </td>
                   <td className="border border-gray-600 px-3 py-3 align-top">
                     {item.dateOfAction ? format(parseLocalDate(item.dateOfAction), 'dd.MM.yyyy') : ''}
                   </td>

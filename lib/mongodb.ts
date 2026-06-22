@@ -19,9 +19,13 @@ function buildUri(dbName: string): string {
 
 /** Derive a database name from a company slug */
 export function dbForCompany(slug: string): string {
-  // IITS uses the original database so existing data is preserved
   if (slug === 'iits') return DEFAULT_DB;
   return `agenda-${slug}`;
+}
+
+/** Derive a database name for a sub-company inside an org */
+export function dbForSubCompany(orgSlug: string, companySlug: string): string {
+  return `agenda-${orgSlug}-${companySlug}`;
 }
 
 // ─── Connection cache ────────────────────────────────────────────────────────
