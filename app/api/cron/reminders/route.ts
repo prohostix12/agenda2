@@ -109,12 +109,6 @@ async function processDb(
         if (item.actionByPhone?.trim()) {
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
-            meetingName,
-            subject:        item.subject,
-            actionBy:       item.actionBy ?? '',
-            daysLeft,
-            dateOfAction:   item.dateOfAction,
-            extendLink,
             templateId:     tplReminder,
             templateParams: [meetingName, item.subject, dateStr, countdownStr],
           });
@@ -125,12 +119,6 @@ async function processDb(
         if (adminPhone && adminPhone !== item.actionByPhone?.trim() && daysLeft <= 3) {
           const r = await sendWhatsAppReminder({
             to:             adminPhone,
-            meetingName,
-            subject:        item.subject,
-            actionBy:       item.actionBy ?? '',
-            daysLeft,
-            dateOfAction:   item.dateOfAction,
-            extendLink,
             templateId:     tplReminderAdmin,
             templateParams: [meetingName, item.subject, item.actionBy ?? '', dateStr, countdownStr],
           });
@@ -141,12 +129,6 @@ async function processDb(
         if (daysLeft <= 0 && extendLink && item.actionByPhone?.trim()) {
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
-            meetingName,
-            subject:        item.subject,
-            actionBy:       item.actionBy ?? '',
-            daysLeft,
-            dateOfAction:   item.dateOfAction,
-            extendLink,
             templateId:     tplExtend,
             templateParams: [item.subject, meetingName, extendLink],
           });

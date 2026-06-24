@@ -5,7 +5,7 @@ import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
 import { getSettingsModel } from '@/models/Settings';
 import { getExtensionRequestModel } from '@/models/ExtensionRequest';
-import { sendWhatsAppReminder, sendEmailReminder } from '@/lib/reminders';
+import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,14 +149,11 @@ export async function POST(req: Request, { params }: Ctx) {
     // Send WhatsApp + email to each admin
     for (const admin of recipients) {
       if (admin.phone) {
-        await sendWhatsAppReminder({
-          to:           admin.phone,
-          meetingName,
-          subject:      `[Extension Request] ${item.subject.split('\n')[0].trim()}`,
-          actionBy:     item.actionBy ?? '',
-          daysLeft:     -999,
-          dateOfAction: requestedDeadline,
-          customBody:   adminMsg,
+        const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'mom_extend';
+        await sendWhatsAppTemplate({
+          to:         admin.phone,
+          templateId: tplExtend,
+          params:     [item.subject.split('\n')[0].trim(), meetingName, `Extension requested to ${fmtDate(requestedDeadline)}`],
         });
       }
       if (admin.email) {

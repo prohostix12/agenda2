@@ -158,49 +158,20 @@ export function buildReminderText({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   High-level: send a WhatsApp reminder.
-   Tries template first → falls back to session plain-text.
+   High-level: send a WhatsApp reminder via template message.
+   Template messages work without opt-in on Live Gupshup apps.
    ──────────────────────────────────────────────────────────────── */
 
 export async function sendWhatsAppReminder({
   to,
-  meetingName,
-  subject,
-  actionBy,
-  daysLeft,
-  dateOfAction,
-  extendLink,
   templateId,
   templateParams,
-  customBody,
 }: {
   to: string;
-  meetingName: string;
-  subject: string;
-  actionBy: string;
-  daysLeft: number;
-  dateOfAction: string;
-  extendLink?: string;
-  templateId?: string;
-  templateParams?: string[];
-  customBody?: string;
-}): Promise<{ ok: boolean; method?: 'template' | 'session'; error?: string }> {
-  const { apiKey, sourceNum } = gupshupConfig();
-  if (!apiKey || !sourceNum) return { ok: false, error: 'Gupshup credentials not configured' };
-
-  // Try template first if provided
-  if (templateId && templateParams) {
-    const tpl = await sendWhatsAppTemplate({ to, templateId, params: templateParams });
-    if (tpl.ok) return { ok: true, method: 'template' };
-    console.log(`[Gupshup] Template "${templateId}" failed for ${normalisePhone(to)}: ${tpl.error} — falling back to session message`);
-  }
-
-  // Fallback: session plain-text message
-  const text = customBody ?? buildReminderText({ meetingName, subject, actionBy, daysLeft, dateOfAction, extendLink });
-  const session = await sendWhatsAppText(to, text);
-  if (session.ok) return { ok: true, method: 'session' };
-
-  return { ok: false, error: session.error };
+  templateId: string;
+  templateParams: string[];
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendWhatsAppTemplate({ to, templateId, params: templateParams });
 }
 
 /* ────────────────────────────────────────────────────────────────
