@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getOAuthClient } from '@/lib/googleAuth';
 import { connectDB } from '@/lib/mongodb';
-import GoogleToken from '@/models/GoogleToken';
+import { getGoogleTokenModel } from '@/models/GoogleToken';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -20,7 +20,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to obtain access token from Google' }, { status: 500 });
     }
 
-    await connectDB();
+    const conn = await connectDB();
+    const GoogleToken = getGoogleTokenModel(conn);
 
     const update: Record<string, string | number> = {
       accessToken: tokens.access_token,

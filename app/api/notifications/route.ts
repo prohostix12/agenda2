@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Minutes from '@/models/Minutes';
-import Meeting from '@/models/Meeting';
+import { getMinutesModel } from '@/models/Minutes';
+import { getMeetingModel } from '@/models/Meeting';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +12,15 @@ export interface NotifItem {
   actionBy: string;
   remarks: string;
   dateOfAction: string | null;
-  daysLeft: number | null; // null = no action date set
+  daysLeft: number | null;
   followedUp: boolean;
 }
 
 export async function GET() {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Minutes = getMinutesModel(conn);
+    const Meeting = getMeetingModel(conn);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -35,7 +37,7 @@ export async function GET() {
     for (const minutes of allMinutes) {
       const meetingName = meetingMap.get(String(minutes.meetingId)) ?? 'Unknown Meeting';
       for (const item of minutes.items) {
-        if (!item.subject?.trim()) continue; // skip completely empty rows
+        if (!item.subject?.trim()) continue;
 
         let daysLeft: number | null = null;
         let dateOfAction: string | null = null;
@@ -61,7 +63,6 @@ export async function GET() {
       }
     }
 
-    // Sort: items with dates first (most urgent), then items without dates
     notifications.sort((a, b) => {
       if (a.daysLeft === null && b.daysLeft === null) return 0;
       if (a.daysLeft === null) return 1;

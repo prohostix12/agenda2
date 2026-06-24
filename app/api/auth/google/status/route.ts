@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import GoogleToken from '@/models/GoogleToken';
+import { getGoogleTokenModel } from '@/models/GoogleToken';
 
 export async function GET() {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const GoogleToken = getGoogleTokenModel(conn);
     const token = await GoogleToken.findOne();
     return NextResponse.json({ connected: !!token });
   } catch {

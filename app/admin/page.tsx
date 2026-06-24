@@ -381,7 +381,7 @@ export default function AdminPage() {
                       {waTestResult.results.map((r, i) => (
                         <div key={i} className="text-xs font-mono bg-black/30 rounded-lg px-3 py-1.5">
                           {String(r.type)}: {r.ok ? '✓ submitted' : `✗ ${String(r.error ?? 'failed')}`}
-                          {r.method && ` (via ${String(r.method)})`}
+                          {r.method ? ` (via ${String(r.method)})` : null}
                         </div>
                       ))}
                     </div>

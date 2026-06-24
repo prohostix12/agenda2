@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getOAuthClient } from '@/lib/googleAuth';
 import { connectDB } from '@/lib/mongodb';
-import GoogleToken from '@/models/GoogleToken';
+import { getGoogleTokenModel } from '@/models/GoogleToken';
 
 export async function POST(req: Request) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const GoogleToken = getGoogleTokenModel(conn);
     const tokenDoc = await GoogleToken.findOne();
     if (!tokenDoc) {
       return NextResponse.json({ error: 'Google not connected' }, { status: 401 });

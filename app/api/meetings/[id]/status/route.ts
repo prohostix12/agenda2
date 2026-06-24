@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Meeting from '@/models/Meeting';
-import Agenda from '@/models/Agenda';
-import Minutes from '@/models/Minutes';
+import { getMeetingModel } from '@/models/Meeting';
+import { getAgendaModel } from '@/models/Agenda';
+import { getMinutesModel } from '@/models/Minutes';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
+    const Agenda = getAgendaModel(conn);
+    const Minutes = getMinutesModel(conn);
     const { id } = await params;
 
     const [meeting, agenda, minutes] = await Promise.all([

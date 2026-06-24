@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Minutes from '@/models/Minutes';
-import Meeting from '@/models/Meeting';
+import { getMinutesModel } from '@/models/Minutes';
+import { getMeetingModel } from '@/models/Meeting';
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ meetingId: string }> }
 ) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Minutes = getMinutesModel(conn);
+    const Meeting = getMeetingModel(conn);
     const { meetingId } = await params;
 
     const minutes = await Minutes.findOne({ meetingId });
@@ -20,12 +22,10 @@ export async function GET(
       });
     }
 
-    // Try to get meeting details for a friendly filename
     let filename = 'Minutes.pdf';
     try {
       const meeting = await Meeting.findById(meetingId);
       if (meeting && meeting.name) {
-        // Sanitize filename
         const safeName = meeting.name.replace(/[^a-zA-Z0-9\s-_]/g, '');
         filename = `Minutes - ${safeName}.pdf`;
       }
@@ -33,7 +33,6 @@ export async function GET(
       console.error('Error fetching meeting for PDF filename:', err);
     }
 
-    // Convert base64 back to binary buffer
     const pdfBuffer = Buffer.from(minutes.pdfBase64, 'base64');
 
     return new NextResponse(pdfBuffer, {

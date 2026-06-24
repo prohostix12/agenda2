@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Meeting from '@/models/Meeting';
-import Agenda from '@/models/Agenda';
-import Minutes from '@/models/Minutes';
+import { getMeetingModel } from '@/models/Meeting';
+import { getAgendaModel } from '@/models/Agenda';
+import { getMinutesModel } from '@/models/Minutes';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
     const { id } = await params;
     const meeting = await Meeting.findById(id);
     if (!meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -19,7 +20,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
     const { id } = await params;
     const body = await req.json();
     const meeting = await Meeting.findByIdAndUpdate(id, body, { returnDocument: 'after' });
@@ -33,7 +35,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
     const { id } = await params;
     const { name } = await req.json();
     if (!name || typeof name !== 'string') {
@@ -50,7 +53,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
+    const Agenda = getAgendaModel(conn);
+    const Minutes = getMinutesModel(conn);
     const { id } = await params;
     await Meeting.findByIdAndDelete(id);
     await Agenda.findOneAndDelete({ meetingId: id });

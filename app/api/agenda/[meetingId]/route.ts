@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Agenda from '@/models/Agenda';
+import { getAgendaModel } from '@/models/Agenda';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ meetingId: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Agenda = getAgendaModel(conn);
     const { meetingId } = await params;
     const agenda = await Agenda.findOne({ meetingId });
     return NextResponse.json(agenda ?? { meetingId, items: [] });
@@ -18,7 +19,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ meeting
 
 export async function PUT(req: Request, { params }: { params: Promise<{ meetingId: string }> }) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Agenda = getAgendaModel(conn);
     const { meetingId } = await params;
     const body = await req.json();
     const agenda = await Agenda.findOneAndUpdate(

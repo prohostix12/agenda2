@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import Meeting from '@/models/Meeting';
+import { getMeetingModel } from '@/models/Meeting';
 
 export async function GET() {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
     const meetings = await Meeting.find().sort({ date: -1 });
     return NextResponse.json(meetings);
   } catch (e) {
@@ -15,7 +16,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await connectDB();
+    const conn = await connectDB();
+    const Meeting = getMeetingModel(conn);
     const body = await req.json();
     const meeting = await Meeting.create(body);
     return NextResponse.json(meeting, { status: 201 });
