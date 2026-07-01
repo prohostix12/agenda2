@@ -100,7 +100,7 @@ async function processDb(
           const r = await sendEmailReminder({ to: item.actionByEmail.trim(), ...payload });
           if (r.ok) result.sent++; else result.errors.push(`email:${item.actionByEmail}: ${r.error}`);
         }
-        if (adminEmail && adminEmail !== item.actionByEmail?.trim() && daysLeft <= 3) {
+        if (adminEmail && adminEmail !== item.actionByEmail?.trim()) {
           const r = await sendEmailReminder({ to: adminEmail, ...payload });
           if (r.ok) result.sent++; else result.errors.push(`admin-email: ${r.error}`);
         }
@@ -115,8 +115,8 @@ async function processDb(
           if (r.ok) result.sent++; else result.errors.push(`wa:${item.actionByPhone}: ${r.error}`);
         }
 
-        // ── WhatsApp: admin — only ≤3 days, includes assigned + date ─
-        if (adminPhone && adminPhone !== item.actionByPhone?.trim() && daysLeft <= 3) {
+        // ── WhatsApp: admin — daily, includes assigned + date ────────
+        if (adminPhone && adminPhone !== item.actionByPhone?.trim()) {
           const r = await sendWhatsAppReminder({
             to:             adminPhone,
             templateId:     tplReminderAdmin,
