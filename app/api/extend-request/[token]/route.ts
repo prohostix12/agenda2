@@ -149,7 +149,7 @@ export async function POST(req: Request, { params }: Ctx) {
     // Send WhatsApp + email to each admin
     for (const admin of recipients) {
       if (admin.phone) {
-        const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'mom_extend';
+        const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
         await sendWhatsAppTemplate({
           to:         admin.phone,
           templateId: tplExtend,

@@ -82,9 +82,9 @@ async function processDb(
           extendLink,
         };
 
-        const tplReminder      = process.env.GUPSHUP_TPL_REMINDER       ?? 'mom_reminder';
-        const tplReminderAdmin = process.env.GUPSHUP_TPL_REMINDER_ADMIN ?? 'mom_admin_reminder';
-        const tplExtend        = process.env.GUPSHUP_TPL_EXTEND         ?? 'mom_extend';
+        const tplReminder      = process.env.GUPSHUP_TPL_REMINDER       ?? '6f3eeb05-62d6-4db8-9290-4b8e3efe9ebc';
+        const tplReminderAdmin = process.env.GUPSHUP_TPL_REMINDER_ADMIN ?? 'ff4db2ee-1639-45f7-a502-159d64b9de9d';
+        const tplExtend        = process.env.GUPSHUP_TPL_EXTEND         ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
 
         const countdownStr =
           daysLeft < 0  ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
 
-    const tplId = process.env.GUPSHUP_TPL_REMINDER ?? 'mom_reminder';
+    const tplId = process.env.GUPSHUP_TPL_REMINDER ?? '6f3eeb05-62d6-4db8-9290-4b8e3efe9ebc';
 
     const result = await sendWhatsAppTemplate({
       to: phone,
