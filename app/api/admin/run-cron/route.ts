@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+function requireSuperAdmin(req: Request): boolean {
+  const cookieHeader = req.headers.get('cookie') ?? '';
+  const match = cookieHeader.match(/mom_session=([^;]+)/);
+  if (!match) return false;
+  const session = verifyToken(match[1]);
+  return session?.role === 'superadmin';
+}
+
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!requireSuperAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const APP_URL = (
     process.env.APP_URL ??
