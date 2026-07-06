@@ -493,6 +493,17 @@ export default function AdminPage() {
                       <p>Total sent: <strong>{String(cronResult.totalSent ?? 0)}</strong></p>
                       <p>Errors: <strong>{String(cronResult.totalErrors ?? 0)}</strong></p>
                       <p>Organisations: <strong>{String(cronResult.orgs ?? 0)}</strong> org + <strong>{String(cronResult.subOrgs ?? 0)}</strong> sub</p>
+                      {Array.isArray(cronResult.results) && (cronResult.results as Array<{label: string; errors: string[]}>).some(r => r.errors?.length > 0) && (
+                        <div className="mt-3 space-y-2">
+                          <p className="font-bold text-red-400">Error details:</p>
+                          {(cronResult.results as Array<{label: string; errors: string[]}>).filter(r => r.errors?.length > 0).map((r, i) => (
+                            <div key={i} className="bg-black/30 rounded-lg px-3 py-2">
+                              <p className="font-semibold text-white mb-1">{r.label}</p>
+                              {r.errors.map((e, j) => <p key={j} className="text-red-300 break-all">{e}</p>)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs">{String(cronResult.error ?? 'Unknown error')}</p>
