@@ -11,6 +11,7 @@ import MinutesTab from '@/components/MinutesTab';
 interface Meeting {
   _id: string; name: string; date: string;
   location?: string; chairperson?: string; meetLink?: string;
+  adminPhone?: string; adminEmail?: string;
 }
 type Tab = 'agenda' | 'minutes';
 
@@ -24,6 +25,10 @@ export default function MeetingPage() {
   const [tab, setTab] = useState<Tab>('agenda');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [adminSaved, setAdminSaved] = useState(false);
 
   useEffect(() => {
     if (!org || !company || !id) return;
@@ -34,8 +39,11 @@ export default function MeetingPage() {
         return data;
       })
       .then(data => {
-        if (data?._id) setMeeting(data);
-        else { setMeeting(null); setError('Meeting not found.'); }
+        if (data?._id) {
+          setMeeting(data);
+          setAdminPhone(data.adminPhone ?? '');
+          setAdminEmail(data.adminEmail ?? '');
+        } else { setMeeting(null); setError('Meeting not found.'); }
       })
       .catch(err => { setMeeting(null); setError(err instanceof Error ? err.message : 'Failed to fetch'); })
       .finally(() => setLoading(false));
@@ -52,6 +60,18 @@ export default function MeetingPage() {
       <Link href={`/${org}/${company}`} className="text-blue-600 mt-4 inline-block">← Back to Meetings</Link>
     </div>
   );
+
+  async function saveAdmin() {
+    setSavingAdmin(true);
+    await fetch(`/api/${org}/${company}/meetings/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminPhone, adminEmail }),
+    });
+    setSavingAdmin(false);
+    setAdminSaved(true);
+    setTimeout(() => setAdminSaved(false), 3000);
+  }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const meetDay = parseLocalDate(meeting.date); meetDay.setHours(0, 0, 0, 0);
@@ -83,6 +103,26 @@ export default function MeetingPage() {
                 Join Meet
               </a>
             )}
+          </div>
+        </div>
+        {/* Per-meeting admin contact */}
+        <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            Meeting Admin (receives reminders &amp; extension requests for this meeting)
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input value={adminPhone} onChange={e => setAdminPhone(e.target.value)} placeholder="Admin WhatsApp No. e.g. +91 9876543210"
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Admin Email e.g. admin@company.com"
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <button onClick={saveAdmin} disabled={savingAdmin}
+              className="bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+              {savingAdmin ? 'Saving…' : 'Save Admin'}
+            </button>
+            {adminSaved && <span className="text-green-600 text-sm font-medium flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Saved</span>}
           </div>
         </div>
       </div>

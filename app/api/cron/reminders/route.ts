@@ -41,17 +41,21 @@ async function processDb(
       Settings.findOne().lean(),
     ]);
 
-    const adminPhone = settings?.adminPhone?.trim() || orgAdminPhone || '';
-    const adminEmail = settings?.adminEmail?.trim() || orgAdminEmail || '';
+    const companyAdminPhone = settings?.adminPhone?.trim() || orgAdminPhone || '';
+    const companyAdminEmail = settings?.adminEmail?.trim() || orgAdminEmail || '';
 
     if (!allMinutes.length) return result;
 
     const meetingIds = [...new Set(allMinutes.map(m => String(m.meetingId)))];
     const meetings   = await Meeting.find({ _id: { $in: meetingIds } }).lean();
-    const meetingMap = new Map(meetings.map(m => [String(m._id), m.name]));
+    const meetingMap = new Map(meetings.map(m => [String(m._id), m]));
 
     for (const minutes of allMinutes) {
-      const meetingName = meetingMap.get(String(minutes.meetingId)) ?? 'Unknown Meeting';
+      const meetingDoc  = meetingMap.get(String(minutes.meetingId));
+      const meetingName = meetingDoc?.name ?? 'Unknown Meeting';
+      // Per-meeting admin takes priority over company-level admin
+      const adminPhone  = meetingDoc?.adminPhone?.trim() || companyAdminPhone;
+      const adminEmail  = meetingDoc?.adminEmail?.trim() || companyAdminEmail;
 
       for (let idx = 0; idx < minutes.items.length; idx++) {
         const item = minutes.items[idx];

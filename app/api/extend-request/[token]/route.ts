@@ -120,13 +120,22 @@ export async function POST(req: Request, { params }: Ctx) {
     // Collect all admin contacts to notify
     const recipients: { phone?: string; email?: string; name?: string }[] = [];
 
-    // 1. Sub-company's own admin (if configured)
-    if (subSettings?.adminPhone || subSettings?.adminEmail) {
+    // 1. Meeting-level admin (highest priority)
+    if (meeting?.adminPhone || meeting?.adminEmail) {
       recipients.push({
-        phone: subSettings.adminPhone?.trim(),
-        email: subSettings.adminEmail?.trim(),
-        name:  subSettings.adminName?.trim() || 'Admin',
+        phone: (meeting.adminPhone as string | undefined)?.trim(),
+        email: (meeting.adminEmail as string | undefined)?.trim(),
+        name:  'Meeting Admin',
       });
+    }
+
+    // 2. Sub-company's own admin (if configured and different from meeting admin)
+    if (subSettings?.adminPhone || subSettings?.adminEmail) {
+      const phone = subSettings.adminPhone?.trim();
+      const email = subSettings.adminEmail?.trim();
+      if (phone !== recipients[0]?.phone || email !== recipients[0]?.email) {
+        recipients.push({ phone, email, name: subSettings.adminName?.trim() || 'Admin' });
+      }
     }
 
     // 2. Org-level admin (for sub-company tokens) — load from org DB

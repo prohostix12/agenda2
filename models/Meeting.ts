@@ -6,6 +6,8 @@ export interface IMeeting extends Document {
   location?: string;
   chairperson?: string;
   meetLink?: string;
+  adminPhone?: string;
+  adminEmail?: string;
   createdAt: Date;
 }
 
@@ -16,6 +18,8 @@ const MeetingSchema = new Schema<IMeeting>(
     location: { type: String, trim: true },
     chairperson: { type: String, trim: true },
     meetLink: { type: String, trim: true },
+    adminPhone: { type: String, trim: true },
+    adminEmail: { type: String, trim: true },
   },
   { timestamps: true }
 );

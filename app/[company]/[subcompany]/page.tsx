@@ -37,6 +37,7 @@ interface Meeting {
 interface ActionItem {
   subject: string; actionBy: string; remarks: string;
   dateOfAction: string | null; daysLeft: number | null; followedUp: boolean;
+  itemIndex?: number;
 }
 type Urgency = 'overdue' | 'today' | 'tomorrow' | 'soon' | 'none';
 
@@ -83,15 +84,17 @@ function StatCard({ icon, label, value, color, onClick }: { icon: React.ReactNod
   );
 }
 
-function MeetingCard({ meeting, org, company, items, onDelete, onRename }: {
+function MeetingCard({ meeting, org, company, items, onDelete, onRename, onItemDone }: {
   meeting: Meeting; org: string; company: string; items: ActionItem[];
   onDelete: (id: string, name: string) => void; onRename: (id: string, name: string) => void;
+  onItemDone: (meetingId: string, itemIndex: number, done: boolean) => void;
 }) {
   const urgency = getUrgency(items);
   const { bar, pill, label } = URGENCY[urgency];
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(meeting.name);
   const [showAll, setShowAll] = useState(false);
+  const [togglingIdx, setTogglingIdx] = useState<number | null>(null);
   const LIMIT = 3;
   const visibleItems = showAll ? items : items.slice(0, LIMIT);
   const hasMore = items.length > LIMIT;
@@ -110,6 +113,17 @@ function MeetingCard({ meeting, org, company, items, onDelete, onRename }: {
       onRename(meeting._id, t);
     }
     setEditing(false);
+  }
+
+  async function toggleDone(itemIndex: number, currentDone: boolean) {
+    setTogglingIdx(itemIndex);
+    await fetch(`/api/${org}/${company}/minutes/${meeting._id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIndex, followedUp: !currentDone }),
+    });
+    onItemDone(meeting._id, itemIndex, !currentDone);
+    setTogglingIdx(null);
   }
 
   return (
@@ -175,10 +189,18 @@ function MeetingCard({ meeting, org, company, items, onDelete, onRename }: {
                   <div className="flex items-center gap-1 shrink-0">
                     {item.dateOfAction && !item.followedUp && <span className="text-[10px] text-gray-400 hidden sm:inline">{fmtActionDate(item.dateOfAction)}</span>}
                     {item.followedUp ? (
-                      <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                      <button onClick={() => toggleDone(item.itemIndex ?? i, true)} disabled={togglingIdx === (item.itemIndex ?? i)}
+                        className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 hover:bg-green-200 transition-colors">
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>Done
-                      </span>
-                    ) : item.daysLeft !== null ? <DeadlinePill daysLeft={item.daysLeft} /> : <span className="text-[10px] text-gray-400 italic">No date</span>}
+                      </button>
+                    ) : (
+                      <button onClick={() => toggleDone(item.itemIndex ?? i, false)} disabled={togglingIdx === (item.itemIndex ?? i)}
+                        className="text-[10px] font-semibold text-gray-500 bg-gray-100 hover:bg-green-100 hover:text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 transition-colors border border-gray-200 disabled:opacity-50">
+                        {togglingIdx === (item.itemIndex ?? i) ? '…' : '✓'}
+                      </button>
+                    )}
+                    {!item.followedUp && item.daysLeft !== null && <DeadlinePill daysLeft={item.daysLeft} />}
+                    {!item.followedUp && item.daysLeft === null && <span className="text-[10px] text-gray-400 italic">No date</span>}
                   </div>
                 </div>
               ))}
@@ -278,6 +300,13 @@ export default function CompanyMeetings() {
     if (!confirm(`Delete "${name}"?`)) return;
     fetch(`/api/${org}/${company}/meetings/${id}`, { method: 'DELETE' });
     setMeetings(prev => prev.filter(m => m._id !== id));
+  }
+  function markItemDone(meetingId: string, itemIndex: number, done: boolean) {
+    setMeetingItems(prev => {
+      const items = prev[meetingId] ?? [];
+      const updated = items.map((item, idx) => idx === itemIndex ? { ...item, followedUp: done } : item);
+      return { ...prev, [meetingId]: updated };
+    });
   }
   function renameMeeting(id: string, newName: string) {
     setMeetings(prev => prev.map(m => m._id === id ? { ...m, name: newName } : m));
@@ -441,7 +470,7 @@ export default function CompanyMeetings() {
 
       {tabList.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {tabList.map(m => <MeetingCard key={m._id} meeting={m} org={org} company={company} items={meetingItems[m._id] ?? []} onDelete={deleteMeeting} onRename={renameMeeting} />)}
+          {tabList.map(m => <MeetingCard key={m._id} meeting={m} org={org} company={company} items={meetingItems[m._id] ?? []} onDelete={deleteMeeting} onRename={renameMeeting} onItemDone={markItemDone} />)}
         </div>
       ) : (
         <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">

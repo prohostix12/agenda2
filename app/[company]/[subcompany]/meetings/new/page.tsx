@@ -12,7 +12,7 @@ export default function NewMeetingPage() {
 
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', date: '', location: '', chairperson: '', meetLink: '' });
+  const [form, setForm] = useState({ name: '', date: '', location: '', chairperson: '', meetLink: '', adminPhone: '', adminEmail: '' });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -80,6 +80,22 @@ export default function NewMeetingPage() {
             </a>
           </div>
           <p className="text-xs text-gray-400 mt-1">Click &ldquo;New Meet&rdquo; to create a link, then paste it above.</p>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3">Meeting Admin (receives extension requests &amp; reminders)</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Admin WhatsApp No.</label>
+              <input name="adminPhone" value={form.adminPhone} onChange={handleChange} placeholder="+91 9876543210"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Admin Email</label>
+              <input name="adminEmail" type="email" value={form.adminEmail} onChange={handleChange} placeholder="admin@company.com"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
         </div>
 
         {submitError && (

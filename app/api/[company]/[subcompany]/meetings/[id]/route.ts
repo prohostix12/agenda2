@@ -25,10 +25,14 @@ export async function PUT(req: Request, { params }: Ctx) {
 
 export async function PATCH(req: Request, { params }: Ctx) {
   const { company, subcompany, id } = await params;
-  const { name } = await req.json();
-  if (!name || typeof name !== 'string') return NextResponse.json({ error: 'Invalid name' }, { status: 400 });
+  const body = await req.json();
+  const update: Record<string, string> = {};
+  if (body.name && typeof body.name === 'string') update.name = body.name.trim();
+  if (typeof body.adminPhone === 'string') update.adminPhone = body.adminPhone.trim();
+  if (typeof body.adminEmail === 'string') update.adminEmail = body.adminEmail.trim();
+  if (!Object.keys(update).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   const conn = await connectDB(dbForSubCompany(company, subcompany));
-  const meeting = await getMeetingModel(conn).findByIdAndUpdate(id, { name: name.trim() }, { returnDocument: 'after' });
+  const meeting = await getMeetingModel(conn).findByIdAndUpdate(id, update, { returnDocument: 'after' });
   if (!meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(meeting);
 }

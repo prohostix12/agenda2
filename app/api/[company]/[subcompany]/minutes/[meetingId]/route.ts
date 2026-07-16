@@ -22,3 +22,20 @@ export async function PUT(req: Request, { params }: Ctx) {
   );
   return NextResponse.json(minutes?.toObject() ?? null);
 }
+
+export async function PATCH(req: Request, { params }: Ctx) {
+  const { company, subcompany, meetingId } = await params;
+  const { itemIndex, followedUp } = await req.json();
+  if (typeof itemIndex !== 'number' || typeof followedUp !== 'boolean') {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+  const conn = await connectDB(dbForSubCompany(company, subcompany));
+  const key = `items.${itemIndex}.followedUp`;
+  const minutes = await getMinutesModel(conn).findOneAndUpdate(
+    { meetingId },
+    { $set: { [key]: followedUp } },
+    { returnDocument: 'after' }
+  );
+  if (!minutes) return NextResponse.json({ error: 'Minutes not found' }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}

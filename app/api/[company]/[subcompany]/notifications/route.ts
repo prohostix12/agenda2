@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     type: 'action' | 'extension';
     meetingId: string; meetingName: string; subject: string;
     actionBy: string; remarks: string; dateOfAction: string | null;
-    daysLeft: number | null; followedUp: boolean;
+    daysLeft: number | null; followedUp: boolean; itemIndex?: number;
     extensionId?: string; requestedDeadline?: string; reason?: string;
   };
 
@@ -37,8 +37,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 
   for (const mins of allMinutes) {
     const meetingName = meetingMap.get(String(mins.meetingId)) ?? 'Unknown Meeting';
-    for (const item of mins.items as Array<{ subject?: string; actionBy?: string; remarks?: string; dateOfAction?: string; followedUp?: boolean }>) {
-      if (!item.subject?.trim()) continue;
+    (mins.items as Array<{ subject?: string; actionBy?: string; remarks?: string; dateOfAction?: string; followedUp?: boolean }>).forEach((item, itemIndex) => {
+      if (!item.subject?.trim()) return;
       let daysLeft: number | null = null;
       let dateOfAction: string | null = null;
       if (item.dateOfAction?.trim()) {
@@ -47,8 +47,8 @@ export async function GET(_req: Request, { params }: Ctx) {
         daysLeft = Math.round((actionDate.getTime() - today.getTime()) / 86_400_000);
         dateOfAction = item.dateOfAction;
       }
-      notifications.push({ type: 'action', meetingId: String(mins.meetingId), meetingName, subject: item.subject, actionBy: item.actionBy ?? '', remarks: item.remarks ?? '', dateOfAction, daysLeft, followedUp: item.followedUp ?? false });
-    }
+      notifications.push({ type: 'action', meetingId: String(mins.meetingId), meetingName, subject: item.subject, actionBy: item.actionBy ?? '', remarks: item.remarks ?? '', dateOfAction, daysLeft, followedUp: item.followedUp ?? false, itemIndex });
+    });
   }
 
   for (const ext of pendingExtRequests) {
