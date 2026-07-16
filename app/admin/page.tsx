@@ -585,9 +585,11 @@ export default function AdminPage() {
       {showCreate && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}>
-          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 pb-0 shrink-0">
             <h3 className="font-bold text-white text-lg mb-5">New Organisation</h3>
-            <div className="space-y-4">
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 space-y-4">
               <div>
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Organisation Name *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -670,21 +672,23 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-            {error && (
-              <div className="mt-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2.5 rounded-xl flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                {error}
+            <div className="px-6 pb-6 pt-4 shrink-0 border-t border-white/10 mt-2">
+              {error && (
+                <div className="mb-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2.5 rounded-xl flex items-center gap-2">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  {error}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={createOrg} disabled={saving}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-900 font-bold py-2.5 rounded-xl text-sm transition">
+                  {saving ? 'Creating…' : 'Create Organisation'}
+                </button>
+                <button onClick={() => setShowCreate(false)}
+                  className="px-4 py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-sm transition">
+                  Cancel
+                </button>
               </div>
-            )}
-            <div className="flex gap-3 mt-4">
-              <button onClick={createOrg} disabled={saving}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-900 font-bold py-2.5 rounded-xl text-sm transition">
-                {saving ? 'Creating…' : 'Create Organisation'}
-              </button>
-              <button onClick={() => setShowCreate(false)}
-                className="px-4 py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-sm transition">
-                Cancel
-              </button>
             </div>
           </div>
         </div>
@@ -694,9 +698,11 @@ export default function AdminPage() {
       {editOrg && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setEditOrg(null); }}>
-          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 pb-0 shrink-0">
             <h3 className="font-bold text-white text-lg mb-5">Edit — {editOrg.name}</h3>
-            <div className="space-y-4">
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 space-y-4">
               <div>
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Organisation Name</label>
                 <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
@@ -776,21 +782,23 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-            {error && (
-              <div className="mt-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2.5 rounded-xl flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                {error}
+            <div className="px-6 pb-6 pt-4 shrink-0 border-t border-white/10 mt-2">
+              {error && (
+                <div className="mb-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2.5 rounded-xl flex items-center gap-2">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  {error}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={saveEdit} disabled={saving}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-900 font-bold py-2.5 rounded-xl text-sm transition">
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+                <button onClick={() => setEditOrg(null)}
+                  className="px-4 py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-sm transition">
+                  Cancel
+                </button>
               </div>
-            )}
-            <div className="flex gap-3 mt-4">
-              <button onClick={saveEdit} disabled={saving}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-900 font-bold py-2.5 rounded-xl text-sm transition">
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
-              <button onClick={() => setEditOrg(null)}
-                className="px-4 py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-sm transition">
-                Cancel
-              </button>
             </div>
           </div>
         </div>
