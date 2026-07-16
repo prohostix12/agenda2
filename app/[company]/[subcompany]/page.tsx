@@ -214,7 +214,7 @@ export default function CompanyMeetings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('upcoming');
   const [showOverdueModal, setShowOverdueModal] = useState(false);
   const [extRequests, setExtRequests] = useState<ExtensionRequest[]>([]);
   const [showExtRequests, setShowExtRequests] = useState(false);

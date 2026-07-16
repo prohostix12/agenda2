@@ -11,7 +11,7 @@ function gupshupConfig() {
   return { apiKey, sourceNum, appName };
 }
 
-function normalisePhone(phone: string) {
+export function normalisePhone(phone: string) {
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10) return `91${digits}`;
   return digits;

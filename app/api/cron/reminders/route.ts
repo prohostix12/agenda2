@@ -5,7 +5,7 @@ import { getSubCompanyModel } from '@/models/SubCompany';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
 import { getSettingsModel } from '@/models/Settings';
-import { sendEmailReminder, sendWhatsAppReminder } from '@/lib/reminders';
+import { sendEmailReminder, sendWhatsAppReminder, normalisePhone } from '@/lib/reminders';
 import { makeExtendToken } from '@/lib/extendToken';
 
 const APP_URL = (
@@ -100,7 +100,7 @@ async function processDb(
           const r = await sendEmailReminder({ to: item.actionByEmail.trim(), ...payload });
           if (r.ok) result.sent++; else result.errors.push(`email:${item.actionByEmail}: ${r.error}`);
         }
-        if (adminEmail && adminEmail !== item.actionByEmail?.trim() && daysLeft <= 3) {
+        if (adminEmail && adminEmail.toLowerCase() !== (item.actionByEmail?.trim() ?? '').toLowerCase() && daysLeft <= 3) {
           const r = await sendEmailReminder({ to: adminEmail, ...payload });
           if (r.ok) result.sent++; else result.errors.push(`admin-email: ${r.error}`);
         }
@@ -116,7 +116,7 @@ async function processDb(
         }
 
         // ── WhatsApp: admin — only ≤3 days, includes assigned + date ─
-        if (adminPhone && adminPhone !== item.actionByPhone?.trim() && daysLeft <= 3) {
+        if (adminPhone && normalisePhone(adminPhone) !== normalisePhone(item.actionByPhone?.trim() ?? '') && daysLeft <= 3) {
           const r = await sendWhatsAppReminder({
             to:             adminPhone,
             templateId:     tplReminderAdmin,
