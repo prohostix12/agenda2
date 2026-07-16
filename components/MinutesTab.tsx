@@ -93,13 +93,14 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
     });
   }, [meeting._id]);
 
-  async function save() {
+  async function save(dataToSave?: MinutesData) {
+    const d = dataToSave ?? data;
     setSaving(true);
-    const pdfBase64 = getMinutesPdfBase64(meeting, data);
+    const pdfBase64 = getMinutesPdfBase64(meeting, d);
     await fetch(`${apiBase}/minutes/${meeting._id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, pdfBase64 }),
+      body: JSON.stringify({ ...d, pdfBase64 }),
     });
     setSaving(false);
     setSaved(true);
@@ -122,12 +123,14 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
     setData((d) => ({ ...d, items: d.items.filter((_, idx) => idx !== i) }));
   }
   function toggleFollowedUp(i: number) {
-    setData((d) => ({
-      ...d,
-      items: d.items.map((item, idx) =>
+    const newData = {
+      ...data,
+      items: data.items.map((item, idx) =>
         idx === i ? { ...item, followedUp: !item.followedUp } : item
       ),
-    }));
+    };
+    setData(newData);
+    save(newData);
   }
 
   function openEmailModal() {
