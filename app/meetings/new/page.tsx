@@ -38,7 +38,7 @@ export default function NewMeetingPage() {
         throw new Error('Meeting was created without an ID.');
       }
 
-      router.push(`/meetings/${data._id}`);
+      router.push(`/meetings`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to create meeting');
     } finally {

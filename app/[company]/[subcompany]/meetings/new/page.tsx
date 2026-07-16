@@ -28,7 +28,7 @@ export default function NewMeetingPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.error) throw new Error(data?.error || `Failed (${res.status})`);
       if (!data?._id) throw new Error('Created without an ID.');
-      router.push(`/${org}/${company}/meetings/${data._id}`);
+      router.push(`/${org}/${company}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create meeting');
     } finally {
