@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 
 interface TaskInfo {
   company: string;
+  sub?: string;
   meetingName: string;
   subject: string;
   actionBy: string;
@@ -76,9 +78,15 @@ export default function ExtendRequestPage() {
         <div className="text-4xl mb-3">⚠️</div>
         <h2 className="text-white font-bold text-lg mb-2">Invalid Link</h2>
         <p className="text-red-300 text-sm">{loadError}</p>
+        <Link href="/" className="mt-6 inline-flex items-center gap-2 text-blue-300 hover:text-blue-200 text-sm font-semibold transition-colors">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to Meetings
+        </Link>
       </div>
     </div>
   );
+
+  const backHref = task ? (task.sub ? `/${task.company}/${task.sub}` : `/${task.company}`) : '/';
 
   if (submitted) return (
     <div className="min-h-screen bg-gradient-to-br from-[#060d1f] via-[#0f172a] to-[#1a2744] flex items-center justify-center p-4">
@@ -94,6 +102,10 @@ export default function ExtendRequestPage() {
           <div className="text-gray-400">New deadline requested: <span className="text-white font-semibold">{fmtDate(newDeadline)}</span></div>
           <div className="text-gray-400">Task: <span className="text-white">{task?.subject.split('\n')[0].trim()}</span></div>
         </div>
+        <Link href={backHref} className="mt-6 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to Meetings
+        </Link>
       </div>
     </div>
   );
@@ -101,6 +113,14 @@ export default function ExtendRequestPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#060d1f] via-[#0f172a] to-[#1a2744] flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
+
+        {/* Back button */}
+        <div className="mb-4">
+          <Link href={backHref} className="inline-flex items-center gap-2 text-blue-300 hover:text-blue-200 text-sm font-semibold transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            Back to All Meetings
+          </Link>
+        </div>
 
         {/* Header */}
         <div className="text-center mb-6">
