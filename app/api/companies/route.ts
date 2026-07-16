@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectDB, MASTER_DB, DEFAULT_DB, dbForCompany } from '@/lib/mongodb';
+import { connectDB, MASTER_DB, DEFAULT_DB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getCompanyModel } from '@/models/Company';
 import { getSubCompanyModel } from '@/models/SubCompany';
 import { getSettingsModel } from '@/models/Settings';
@@ -256,8 +256,26 @@ export async function DELETE(req: Request) {
     if (!slug) return NextResponse.json({ error: 'slug required' }, { status: 400 });
     if (slug === 'iits') return NextResponse.json({ error: 'Cannot delete IITS' }, { status: 403 });
 
-    const conn = await getMasterConn();
-    const Company = getCompanyModel(conn);
+    const masterConn = await getMasterConn();
+    const Company    = getCompanyModel(masterConn);
+    const SubCompany = getSubCompanyModel(masterConn);
+
+    // Find all sub-companies under this org and drop their databases
+    const subs = await SubCompany.find({ orgSlug: slug }).lean();
+    for (const sub of subs) {
+      try {
+        const subConn = await connectDB(dbForSubCompany(slug, sub.slug));
+        await subConn.db?.dropDatabase();
+      } catch { /* ignore if already gone */ }
+    }
+    await SubCompany.deleteMany({ orgSlug: slug });
+
+    // Drop the org's own database
+    try {
+      const orgConn = await connectDB(dbForCompany(slug));
+      await orgConn.db?.dropDatabase();
+    } catch { /* ignore if already gone */ }
+
     await Company.findOneAndDelete({ slug });
     return NextResponse.json({ success: true });
   } catch (e) {
