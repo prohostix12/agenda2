@@ -489,6 +489,30 @@ export function getMinutesTextSummary(
   return lines.join('\n');
 }
 
+export function getAgendaTextSummary(meeting: Meeting, items: AgendaItem[]): string {
+  const lines: string[] = [];
+  lines.push(`*MEETING AGENDA: ${meeting?.name?.toUpperCase() || 'MEETING'}*`);
+  lines.push(`Date: ${fmtDate(meeting?.date)}`);
+  if (meeting?.location) lines.push(`Venue: ${meeting.location}`);
+  if (meeting?.chairperson) lines.push(`Chairperson: ${meeting.chairperson}`);
+  lines.push('');
+
+  const valid = items.filter(i => i.title.trim());
+  if (valid.length) {
+    lines.push(`*AGENDA ITEMS:*`);
+    valid.forEach(a => {
+      lines.push(`${a.order}. *${a.title}*${a.duration ? ` (${a.duration})` : ''}`);
+      if (a.description?.trim()) lines.push(`   ${a.description.trim()}`);
+      const pList = a.presenters?.filter(p => p.trim());
+      if (pList?.length) lines.push(`   Presenter(s): ${pList.join(', ')}`);
+    });
+  }
+
+  lines.push('');
+  lines.push('— _MOM, Minutes of Meeting System_');
+  return lines.join('\n');
+}
+
 export function getMinutesPdfBase64(meeting: Meeting, data: MinutesData, agendaItems: AgendaItem[] = []): string {
   const pdf = buildMinutesPdf(meeting, data, agendaItems);
   const dataUri = pdf.output('datauristring');
