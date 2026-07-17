@@ -77,13 +77,20 @@ async function processDb(
 
         const tplReminder      = process.env.GUPSHUP_TPL_REMINDER       ?? '6f3eeb05-62d6-4db8-9290-4b8e3efe9ebc';
         const tplReminderAdmin = process.env.GUPSHUP_TPL_REMINDER_ADMIN ?? 'ff4db2ee-1639-45f7-a502-159d64b9de9d';
-        const tplExtend        = process.env.GUPSHUP_TPL_EXTEND         ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
 
-        const countdownStr =
+        const subjectLine = item.subject.split('\n')[0].trim();
+
+        // Base status string (used for admin template)
+        const statusStr =
           daysLeft < 0  ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`
           : daysLeft === 0 ? 'Due Today'
           : daysLeft === 1 ? '1 day left'
           : `${daysLeft} days left`;
+
+        // For assignee: embed the extend link in the status param when overdue
+        const assigneeStatus = daysLeft <= 0 && extendLink
+          ? `${statusStr}\nRequest extension: ${extendLink}`
+          : statusStr;
 
         const hasContact = !!(item.actionByEmail?.trim() || item.actionByPhone?.trim() || adminEmail || adminPhone);
         if (!hasContact) { result.no_contact++; continue; }
@@ -98,12 +105,12 @@ async function processDb(
           if (r.ok) result.sent++; else result.errors.push(`admin-email: ${r.error}`);
         }
 
-        // ── WhatsApp: assignee — daily, includes deadline ────────────
+        // ── WhatsApp: assignee — daily reminder, extend link included when overdue ─
         if (item.actionByPhone?.trim()) {
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
             templateId:     tplReminder,
-            templateParams: [meetingName, item.subject, dateStr, countdownStr],
+            templateParams: [meetingName, subjectLine, dateStr, assigneeStatus],
           });
           if (r.ok) result.sent++; else result.errors.push(`wa:${item.actionByPhone}: ${r.error}`);
         }
@@ -113,19 +120,9 @@ async function processDb(
           const r = await sendWhatsAppReminder({
             to:             adminPhone,
             templateId:     tplReminderAdmin,
-            templateParams: [meetingName, item.subject, item.actionBy ?? '', dateStr, countdownStr],
+            templateParams: [meetingName, subjectLine, item.actionBy ?? '', dateStr, statusStr],
           });
           if (r.ok) result.sent++; else result.errors.push(`admin-wa: ${r.error}`);
-        }
-
-        // ── WhatsApp: assignee — extend request on/after due date ────
-        if (daysLeft <= 0 && extendLink && item.actionByPhone?.trim()) {
-          const r = await sendWhatsAppReminder({
-            to:             item.actionByPhone.trim(),
-            templateId:     tplExtend,
-            templateParams: [item.subject, meetingName, extendLink],
-          });
-          if (r.ok) result.sent++; else result.errors.push(`wa-extend:${item.actionByPhone}: ${r.error}`);
         }
       }
     }
