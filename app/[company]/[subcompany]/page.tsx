@@ -241,29 +241,6 @@ export default function CompanyMeetings() {
   const [extRequests, setExtRequests] = useState<ExtensionRequest[]>([]);
   const [showExtRequests, setShowExtRequests] = useState(false);
 
-  const [showSettings, setShowSettings] = useState(false);
-  const [adminPhone, setAdminPhone] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-
-  useEffect(() => {
-    if (!showSettings || !company) return;
-    fetch(`/api/${org}/${company}/settings`).then(r => r.json()).then(d => {
-      setAdminPhone(d.adminPhone ?? '');
-      setAdminEmail(d.adminEmail ?? '');
-    }).catch(() => {});
-  }, [showSettings, org, company]);
-
-  async function saveSettings() {
-    setSettingsSaving(true);
-    await fetch(`/api/${org}/${company}/settings`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPhone, adminEmail }),
-    });
-    setSettingsSaving(false); setSettingsSaved(true);
-    setTimeout(() => { setSettingsSaved(false); setShowSettings(false); }, 1500);
-  }
 
   useEffect(() => {
     if (!org || !company) return;
@@ -475,34 +452,6 @@ export default function CompanyMeetings() {
       ) : (
         <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
           {search ? <><p className="text-gray-500">No meetings match &ldquo;{search}&rdquo;</p><button onClick={() => setSearch('')} className="text-blue-600 text-sm mt-2 hover:underline">Clear</button></> : <><p className="text-gray-500 font-medium">No meetings yet</p><Link href={`/${org}/${company}/meetings/new`} className="text-blue-600 text-sm mt-2 inline-block hover:underline">Create one →</Link></>}
-        </div>
-      )}
-
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between">
-              <div><h3 className="font-bold text-lg">Notification Admin</h3><p className="text-blue-300 text-xs mt-0.5">This person receives ALL reminder notifications</p></div>
-              <button onClick={() => setShowSettings(false)} className="text-blue-300 hover:text-white"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">Every daily reminder will <strong>also be sent</strong> to this admin.</div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Admin WhatsApp Number</label>
-                <input value={adminPhone} onChange={e => setAdminPhone(e.target.value)} placeholder="+91 9876543210" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Admin Email</label>
-                <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@company.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-            </div>
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-2 border-t border-gray-100">
-              <button onClick={() => setShowSettings(false)} className="border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-100">Cancel</button>
-              <button onClick={saveSettings} disabled={settingsSaving} className="bg-blue-900 text-white px-6 py-2 rounded-xl text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 flex items-center gap-2">
-                {settingsSaved ? <><svg className="w-4 h-4 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Saved!</> : settingsSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

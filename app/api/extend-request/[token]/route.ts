@@ -3,7 +3,6 @@ import { verifyExtendToken } from '@/lib/extendToken';
 import { connectDB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
-import { getSettingsModel } from '@/models/Settings';
 import { getExtensionRequestModel } from '@/models/ExtensionRequest';
 import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
 
@@ -67,16 +66,14 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!reason?.trim())            return NextResponse.json({ error: 'Reason is required' }, { status: 400 });
     if (!requestedDeadline?.trim()) return NextResponse.json({ error: 'New deadline is required' }, { status: 400 });
 
-    const conn     = await connectDB(getDbName(company, sub));
-    const Minutes  = getMinutesModel(conn);
-    const Meeting  = getMeetingModel(conn);
-    const Settings = getSettingsModel(conn);
-    const ExtReq   = getExtensionRequestModel(conn);
+    const conn    = await connectDB(getDbName(company, sub));
+    const Minutes = getMinutesModel(conn);
+    const Meeting = getMeetingModel(conn);
+    const ExtReq  = getExtensionRequestModel(conn);
 
-    const [minutes, meeting, subSettings] = await Promise.all([
+    const [minutes, meeting] = await Promise.all([
       Minutes.findOne({ meetingId }).lean(),
       Meeting.findById(meetingId).lean(),
-      Settings.findOne().lean(),
     ]);
 
     if (!minutes || !minutes.items[itemIndex]) {
@@ -117,42 +114,15 @@ export async function POST(req: Request, { params }: Ctx) {
       `— _MOM, Minutes of Meeting System_`,
     ].join('\n');
 
-    // Collect all admin contacts to notify
+    // Notify only the meeting-level admin
     const recipients: { phone?: string; email?: string; name?: string }[] = [];
 
-    // 1. Meeting-level admin (highest priority)
     if (meeting?.adminPhone || meeting?.adminEmail) {
       recipients.push({
         phone: (meeting.adminPhone as string | undefined)?.trim(),
         email: (meeting.adminEmail as string | undefined)?.trim(),
         name:  'Meeting Admin',
       });
-    }
-
-    // 2. Sub-company's own admin (if configured and different from meeting admin)
-    if (subSettings?.adminPhone || subSettings?.adminEmail) {
-      const phone = subSettings.adminPhone?.trim();
-      const email = subSettings.adminEmail?.trim();
-      if (phone !== recipients[0]?.phone || email !== recipients[0]?.email) {
-        recipients.push({ phone, email, name: subSettings.adminName?.trim() || 'Admin' });
-      }
-    }
-
-    // 2. Org-level admin (for sub-company tokens) — load from org DB
-    if (sub) {
-      try {
-        const orgConn      = await connectDB(dbForCompany(company));
-        const OrgSettings  = getSettingsModel(orgConn);
-        const orgSettings  = await OrgSettings.findOne().lean();
-        if (orgSettings?.adminPhone || orgSettings?.adminEmail) {
-          const orgPhone = orgSettings.adminPhone?.trim();
-          const orgEmail = orgSettings.adminEmail?.trim();
-          // Only add if different from sub-company admin
-          if (orgPhone !== recipients[0]?.phone || orgEmail !== recipients[0]?.email) {
-            recipients.push({ phone: orgPhone, email: orgEmail, name: orgSettings.adminName?.trim() || 'Org Admin' });
-          }
-        }
-      } catch { /* ignore if org DB doesn't exist */ }
     }
 
     // Send WhatsApp + email to each admin

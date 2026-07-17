@@ -4,7 +4,6 @@ import { getCompanyModel } from '@/models/Company';
 import { getSubCompanyModel } from '@/models/SubCompany';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
-import { getSettingsModel } from '@/models/Settings';
 import { sendEmailReminder, sendWhatsAppReminder, normalisePhone } from '@/lib/reminders';
 import { makeExtendToken } from '@/lib/extendToken';
 
@@ -26,23 +25,14 @@ async function processDb(
   label: string,
   today: Date,
   makeToken: (meetingId: string, itemIndex: number) => string,
-  orgAdminPhone?: string,
-  orgAdminEmail?: string,
 ): Promise<Result> {
   const result: Result = { label, sent: 0, skipped: 0, no_contact: 0, errors: [] };
   try {
-    const conn     = await connectDB(dbName);
-    const Minutes  = getMinutesModel(conn);
-    const Meeting  = getMeetingModel(conn);
-    const Settings = getSettingsModel(conn);
+    const conn    = await connectDB(dbName);
+    const Minutes = getMinutesModel(conn);
+    const Meeting = getMeetingModel(conn);
 
-    const [allMinutes, settings] = await Promise.all([
-      Minutes.find().lean(),
-      Settings.findOne().lean(),
-    ]);
-
-    const companyAdminPhone = settings?.adminPhone?.trim() || orgAdminPhone || '';
-    const companyAdminEmail = settings?.adminEmail?.trim() || orgAdminEmail || '';
+    const allMinutes = await Minutes.find().lean();
 
     if (!allMinutes.length) return result;
 
@@ -53,9 +43,8 @@ async function processDb(
     for (const minutes of allMinutes) {
       const meetingDoc  = meetingMap.get(String(minutes.meetingId));
       const meetingName = meetingDoc?.name ?? 'Unknown Meeting';
-      // Per-meeting admin takes priority over company-level admin
-      const adminPhone  = meetingDoc?.adminPhone?.trim() || companyAdminPhone;
-      const adminEmail  = meetingDoc?.adminEmail?.trim() || companyAdminEmail;
+      const adminPhone  = meetingDoc?.adminPhone?.trim() || '';
+      const adminEmail  = meetingDoc?.adminEmail?.trim() || '';
 
       for (let idx = 0; idx < minutes.items.length; idx++) {
         const item = minutes.items[idx];
@@ -183,24 +172,11 @@ export async function GET(req: Request) {
 
     // ── Process each sub-company ─────────────────────────────────────────────
     for (const sub of subCompanies) {
-      // Load org admin contact as fallback for sub-company with no settings
-      let orgAdminPhone: string | undefined;
-      let orgAdminEmail: string | undefined;
-      try {
-        const orgConn     = await connectDB(dbForCompany(sub.orgSlug));
-        const OrgSettings = getSettingsModel(orgConn);
-        const orgSettings = await OrgSettings.findOne().lean();
-        orgAdminPhone = orgSettings?.adminPhone?.trim();
-        orgAdminEmail = orgSettings?.adminEmail?.trim();
-      } catch { /* ignore */ }
-
       const result = await processDb(
         dbForSubCompany(sub.orgSlug, sub.slug),
         `${sub.orgSlug}/${sub.slug}`,
         today,
         (meetingId, idx) => makeExtendToken({ company: sub.orgSlug, sub: sub.slug, meetingId, itemIndex: idx }),
-        orgAdminPhone,
-        orgAdminEmail,
       );
       results.push(result);
     }
