@@ -284,7 +284,7 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
             </span>
           )}
           {view === 'edit' && (
-            <button onClick={save} disabled={saving} className="bg-blue-900 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-blue-800 disabled:opacity-50 transition-colors">
+            <button onClick={() => save()} disabled={saving} className="bg-blue-900 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-blue-800 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : 'Save Minutes'}
             </button>
           )}
@@ -608,7 +608,7 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
           </div>
 
           <div className="flex justify-end pt-2">
-            <button onClick={save} disabled={saving} className="bg-blue-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors">
+            <button onClick={() => save()} disabled={saving} className="bg-blue-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : 'Save Minutes'}
             </button>
           </div>
