@@ -80,17 +80,11 @@ async function processDb(
 
         const subjectLine = item.subject.split('\n')[0].trim();
 
-        // Base status string (used for admin template)
-        const statusStr =
+        const countdownStr =
           daysLeft < 0  ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`
           : daysLeft === 0 ? 'Due Today'
           : daysLeft === 1 ? '1 day left'
           : `${daysLeft} days left`;
-
-        // For assignee: embed the extend link in the status param when overdue
-        const assigneeStatus = daysLeft <= 0 && extendLink
-          ? `${statusStr}\nRequest extension: ${extendLink}`
-          : statusStr;
 
         const hasContact = !!(item.actionByEmail?.trim() || item.actionByPhone?.trim() || adminEmail || adminPhone);
         if (!hasContact) { result.no_contact++; continue; }
@@ -105,22 +99,22 @@ async function processDb(
           if (r.ok) result.sent++; else result.errors.push(`admin-email: ${r.error}`);
         }
 
-        // ── WhatsApp: assignee — daily reminder, extend link included when overdue ─
+        // ── WhatsApp: assignee ────────────────────────────────────────
         if (item.actionByPhone?.trim()) {
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
             templateId:     tplReminder,
-            templateParams: [meetingName, subjectLine, dateStr, assigneeStatus],
+            templateParams: [meetingName, subjectLine, dateStr, countdownStr],
           });
           if (r.ok) result.sent++; else result.errors.push(`wa:${item.actionByPhone}: ${r.error}`);
         }
 
-        // ── WhatsApp: admin — only ≤3 days, includes assigned + date ─
+        // ── WhatsApp: admin — only ≤3 days ────────────────────────────
         if (adminPhone && normalisePhone(adminPhone) !== normalisePhone(item.actionByPhone?.trim() ?? '') && daysLeft <= 3) {
           const r = await sendWhatsAppReminder({
             to:             adminPhone,
             templateId:     tplReminderAdmin,
-            templateParams: [meetingName, subjectLine, item.actionBy ?? '', dateStr, statusStr],
+            templateParams: [meetingName, subjectLine, item.actionBy ?? '', dateStr, countdownStr],
           });
           if (r.ok) result.sent++; else result.errors.push(`admin-wa: ${r.error}`);
         }
