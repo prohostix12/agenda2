@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyExtendToken } from '@/lib/extendToken';
+import { makeReviewToken } from '@/lib/reviewToken';
 import { connectDB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
@@ -7,6 +8,13 @@ import { getExtensionRequestModel } from '@/models/ExtensionRequest';
 import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
 
 export const dynamic = 'force-dynamic';
+
+const APP_URL = (
+  process.env.APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null) ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
+  'http://localhost:3000'
+).replace(/\/$/, '');
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -85,7 +93,7 @@ export async function POST(req: Request, { params }: Ctx) {
     const companyLabel = sub ? sub : company;
 
     // Save the request to sub-company (or company) DB
-    await ExtReq.create({
+    const extReqDoc = await ExtReq.create({
       company: companyLabel,
       meetingId,
       itemIndex,
@@ -96,6 +104,10 @@ export async function POST(req: Request, { params }: Ctx) {
       reason:            reason.trim(),
       requestedDeadline: requestedDeadline.trim(),
     });
+
+    // Single-use link for the meeting admin to approve/reject this specific request
+    const reviewToken = makeReviewToken({ company, sub, requestId: String(extReqDoc._id) });
+    const reviewLink   = `${APP_URL}/review-request/${reviewToken}`;
 
     // Build notification message
     const adminMsg = [
@@ -110,6 +122,9 @@ export async function POST(req: Request, { params }: Ctx) {
       ``,
       `*Reason:*`,
       `${reason.trim()}`,
+      ``,
+      `👉 Review and respond to this request:`,
+      reviewLink,
       ``,
       `— _MOM, Minutes of Meeting System_`,
     ].join('\n');
@@ -143,6 +158,8 @@ export async function POST(req: Request, { params }: Ctx) {
           actionBy:      item.actionBy ?? '',
           daysLeft:      -999,
           dateOfAction:  requestedDeadline,
+          extendLink:    reviewLink,
+          actionLabel:   '📋 Review & Respond to Request',
           customSubject: `📋 Extension Request from ${item.actionBy || 'Employee'} — ${meetingName}`,
           customBody:    adminMsg,
         });

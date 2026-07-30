@@ -5,6 +5,14 @@ export interface IAttendee {
   designation: string;
 }
 
+export interface IDeadlineHistoryEntry {
+  previousDeadline: string;
+  requestedDeadline: string;
+  reason: string;
+  status: 'approved' | 'rejected';
+  decidedAt: Date;
+}
+
 export interface IMinutesItem {
   subject: string;
   actionBy: string;
@@ -13,6 +21,7 @@ export interface IMinutesItem {
   followedUp?: boolean;
   actionByPhone?: string;  // WhatsApp number with country code, e.g. +919876543210
   actionByEmail?: string;  // Email address for reminders
+  deadlineHistory?: IDeadlineHistoryEntry[];  // audit trail of extension request decisions
 }
 
 export interface IMinutes extends Document {
@@ -36,15 +45,27 @@ const AttendeeSchema = new Schema<IAttendee>(
   { _id: false }
 );
 
+const DeadlineHistoryEntrySchema = new Schema<IDeadlineHistoryEntry>(
+  {
+    previousDeadline:  { type: String, required: true },
+    requestedDeadline: { type: String, required: true },
+    reason:            { type: String, default: '' },
+    status:            { type: String, enum: ['approved', 'rejected'], required: true },
+    decidedAt:         { type: Date, required: true },
+  },
+  { _id: false }
+);
+
 const MinutesItemSchema = new Schema<IMinutesItem>(
   {
-    subject:       { type: String, default: '' },
-    actionBy:      { type: String, default: '' },
-    dateOfAction:  { type: String, default: '' },
-    remarks:       { type: String, default: '' },
-    followedUp:    { type: Boolean, default: false },
-    actionByPhone: { type: String, trim: true },
-    actionByEmail: { type: String, trim: true },
+    subject:         { type: String, default: '' },
+    actionBy:        { type: String, default: '' },
+    dateOfAction:    { type: String, default: '' },
+    remarks:         { type: String, default: '' },
+    followedUp:      { type: Boolean, default: false },
+    actionByPhone:   { type: String, trim: true },
+    actionByEmail:   { type: String, trim: true },
+    deadlineHistory: { type: [DeadlineHistoryEntrySchema], default: [] },
   },
   { _id: false }
 );

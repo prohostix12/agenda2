@@ -11,6 +11,7 @@ export interface IExtensionRequest extends Document {
   reason: string;
   requestedDeadline: string;
   status: 'pending' | 'approved' | 'rejected';
+  decidedAt?: Date;
   createdAt: Date;
 }
 
@@ -26,6 +27,7 @@ const ExtensionRequestSchema = new Schema<IExtensionRequest>(
     reason:            { type: String, required: true },
     requestedDeadline: { type: String, required: true },
     status:            { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    decidedAt:         { type: Date },
   },
   { timestamps: true }
 );

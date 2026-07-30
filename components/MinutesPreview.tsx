@@ -4,7 +4,8 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 
 interface Attendee { name: string; designation: string; }
-interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; actionByPhone?: string; actionByEmail?: string; }
+interface DeadlineHistoryEntry { previousDeadline: string; requestedDeadline: string; reason: string; status: 'approved' | 'rejected'; decidedAt: string; }
+interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; actionByPhone?: string; actionByEmail?: string; deadlineHistory?: DeadlineHistoryEntry[]; }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string; meetingReference: string;
@@ -178,6 +179,13 @@ export default function MinutesPreview({ meeting, data, agendaItems = [] }: { me
                   </td>
                   <td className="border border-gray-600 px-3 py-3 align-top">
                     {item.dateOfAction ? format(parseLocalDate(item.dateOfAction), 'dd.MM.yyyy') : ''}
+                    {!!item.deadlineHistory?.length && (
+                      <div className="mt-1 text-[10px] text-blue-700" title={item.deadlineHistory.map(h => `${h.status === 'approved' ? 'Extended' : 'Extension rejected'}: ${format(parseLocalDate(h.previousDeadline), 'dd.MM.yyyy')} → ${format(parseLocalDate(h.requestedDeadline), 'dd.MM.yyyy')}`).join('\n')}>
+                        {item.deadlineHistory.some(h => h.status === 'approved')
+                          ? `Extended ${item.deadlineHistory.filter(h => h.status === 'approved').length}x`
+                          : 'Extension request rejected'}
+                      </div>
+                    )}
                   </td>
                   <td className="border border-gray-600 px-3 py-3 align-top">{item.remarks || ''}</td>
                 </tr>

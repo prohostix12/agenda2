@@ -188,6 +188,7 @@ export async function sendEmailReminder({
   daysLeft,
   dateOfAction,
   extendLink,
+  actionLabel,
   customSubject,
   customBody,
 }: {
@@ -198,6 +199,7 @@ export async function sendEmailReminder({
   daysLeft: number;
   dateOfAction: string;
   extendLink?: string;
+  actionLabel?: string;
   customSubject?: string;
   customBody?: string;
 }): Promise<{ ok: boolean; error?: string }> {
@@ -260,7 +262,7 @@ export async function sendEmailReminder({
         <tr><td style="padding:8px 0;color:#64748b;vertical-align:top;">Subject</td><td style="padding:8px 0;color:#1e293b;">${subject.split('\n')[0].trim()}</td></tr>
       </table>
       ${customBody ? `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin-top:16px;">${customBody}</pre>` : `<p style="color:#64748b;font-size:13px;margin-top:20px;">Please ensure this action item is completed before the deadline.</p>`}
-      ${extendLink && daysLeft <= 0 ? `<div style="margin-top:20px;text-align:center;"><a href="${extendLink}" style="background:#2563eb;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;display:inline-block;">🔗 Request Deadline Extension</a></div>` : ''}
+      ${extendLink && daysLeft <= 0 ? `<div style="margin-top:20px;text-align:center;"><a href="${extendLink}" style="background:#2563eb;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;display:inline-block;">${actionLabel ?? '🔗 Request Deadline Extension'}</a></div>` : ''}
     </div>
     <div style="background:#f8fafc;padding:16px 24px;border-top:1px solid #e2e8f0;text-align:center;">
       <p style="color:#94a3b8;font-size:12px;margin:0;">MOM — Minutes of Meeting System &copy; IITS Group</p>

@@ -5,6 +5,7 @@ import MinutesPreview from './MinutesPreview';
 import { downloadMinutesPdf, shareMinutesPdf, getMinutesPdfBase64, getMinutesTextSummary } from '@/lib/downloadPdf';
 
 interface Attendee { name: string; designation: string; }
+interface DeadlineHistoryEntry { previousDeadline: string; requestedDeadline: string; reason: string; status: 'approved' | 'rejected'; decidedAt: string; }
 interface MinutesItem {
   subject: string;
   actionBy: string;
@@ -13,6 +14,7 @@ interface MinutesItem {
   followedUp?: boolean;
   actionByPhone?: string;
   actionByEmail?: string;
+  deadlineHistory?: DeadlineHistoryEntry[];
 }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
@@ -27,6 +29,12 @@ interface MinutesData {
 }
 interface Meeting {
   _id: string; name: string; date: string; location?: string; chairperson?: string; meetLink?: string;
+}
+
+function fmtShortDate(d: string) {
+  if (!d) return '';
+  const [y, m, day] = d.substring(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 const emptyAttendee = (): Attendee => ({ name: '', designation: '' });
@@ -530,6 +538,20 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date of Action</label>
                         <input type="date" value={item.dateOfAction} onChange={(e) => updateItem(i, 'dateOfAction', e.target.value)}
                           className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        {!!item.deadlineHistory?.length && (
+                          <details className="mt-1">
+                            <summary className="text-[10px] text-blue-600 cursor-pointer select-none">
+                              Extension history ({item.deadlineHistory.length})
+                            </summary>
+                            <ul className="mt-1 space-y-1">
+                              {item.deadlineHistory.map((h, hi) => (
+                                <li key={hi} className={`text-[10px] px-2 py-1 rounded ${h.status === 'approved' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                  {h.status === 'approved' ? 'Approved' : 'Rejected'}: {fmtShortDate(h.previousDeadline)} → {fmtShortDate(h.requestedDeadline)}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remarks</label>
