@@ -118,6 +118,17 @@ async function processDb(
           });
           if (r.ok) result.sent++; else result.errors.push(`admin-wa: ${r.error}`);
         }
+
+        // ── WhatsApp: assignee — extend link on/after due date ────────
+        if (daysLeft <= 0 && extendLink && item.actionByPhone?.trim()) {
+          const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
+          const r = await sendWhatsAppReminder({
+            to:             item.actionByPhone.trim(),
+            templateId:     tplExtend,
+            templateParams: [subjectLine, meetingName, extendLink],
+          });
+          if (r.ok) result.sent++; else result.errors.push(`wa-extend:${item.actionByPhone}: ${r.error}`);
+        }
       }
     }
   } catch (e) {
