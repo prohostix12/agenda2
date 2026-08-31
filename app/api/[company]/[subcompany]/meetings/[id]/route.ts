@@ -30,6 +30,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (body.name && typeof body.name === 'string') update.name = body.name.trim();
   if (typeof body.adminPhone === 'string') update.adminPhone = body.adminPhone.trim();
   if (typeof body.adminEmail === 'string') update.adminEmail = body.adminEmail.trim();
+  if (typeof body.chairpersonPhone === 'string') update.chairpersonPhone = body.chairpersonPhone.trim();
   if (!Object.keys(update).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   const conn = await connectDB(dbForSubCompany(company, subcompany));
   const meeting = await getMeetingModel(conn).findByIdAndUpdate(id, update, { returnDocument: 'after' });

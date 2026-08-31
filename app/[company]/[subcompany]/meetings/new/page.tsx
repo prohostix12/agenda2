@@ -12,7 +12,7 @@ export default function NewMeetingPage() {
 
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', date: '', location: '', chairperson: '', meetLink: '', adminPhone: '', adminEmail: '' });
+  const [form, setForm] = useState({ name: '', date: '', location: '', chairperson: '', chairpersonPhone: '', meetLink: '', adminPhone: '', adminEmail: '' });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -63,10 +63,18 @@ export default function NewMeetingPage() {
           <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Conference Room A"
             className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Chairperson</label>
-          <input name="chairperson" value={form.chairperson} onChange={handleChange} placeholder="e.g. Dr. Jane Smith"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Chairperson</label>
+            <input name="chairperson" value={form.chairperson} onChange={handleChange} placeholder="e.g. Dr. Jane Smith"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Chairperson WhatsApp No.</label>
+            <input name="chairpersonPhone" value={form.chairpersonPhone} onChange={handleChange} placeholder="+91 9876543210"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400" />
+            <p className="text-xs text-gray-400 mt-1">Gets a WhatsApp alert whenever a task is submitted.</p>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Google Meet Link</label>

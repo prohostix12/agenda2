@@ -3,7 +3,7 @@ import { verifyExtendToken } from '@/lib/extendToken';
 import { connectDB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
-import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
+import { sendWhatsAppTemplate, sendEmailReminder, normalisePhone } from '@/lib/reminders';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,12 +98,18 @@ export async function POST(req: Request, { params }: Ctx) {
     const meetingName = meeting?.name ?? 'Unknown Meeting';
     const taskName = item.subject.split('\n')[0].trim();
 
-    // Notify the meeting admin
-    if (meeting?.adminPhone) {
-      const tplTaskAccept = process.env.GUPSHUP_TPL_TASK_ACCEPT_NOTIFY;
-      if (tplTaskAccept) {
+    // Notify the meeting admin and the chairperson
+    const tplTaskAccept = process.env.GUPSHUP_TPL_TASK_ACCEPT_NOTIFY;
+    const notifyPhones = [meeting?.adminPhone, meeting?.chairpersonPhone]
+      .filter((p): p is string => !!p?.trim())
+      .map(p => p.trim());
+    const uniquePhones = [...new Set(notifyPhones.map(normalisePhone))]
+      .map(np => notifyPhones.find(p => normalisePhone(p) === np)!);
+
+    if (tplTaskAccept) {
+      for (const phone of uniquePhones) {
         await sendWhatsAppTemplate({
-          to:         meeting.adminPhone,
+          to:         phone,
           templateId: tplTaskAccept,
           params:     [meetingName, item.actionBy ?? 'Unknown', taskName, title.trim()],
         });

@@ -10,7 +10,7 @@ import MinutesTab from '@/components/MinutesTab';
 
 interface Meeting {
   _id: string; name: string; date: string;
-  location?: string; chairperson?: string; meetLink?: string;
+  location?: string; chairperson?: string; chairpersonPhone?: string; meetLink?: string;
   adminPhone?: string; adminEmail?: string;
 }
 type Tab = 'agenda' | 'minutes';
@@ -27,6 +27,7 @@ export default function MeetingPage() {
   const [error, setError] = useState<string | null>(null);
   const [adminPhone, setAdminPhone] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
+  const [chairpersonPhone, setChairpersonPhone] = useState('');
   const [savingAdmin, setSavingAdmin] = useState(false);
   const [adminSaved, setAdminSaved] = useState(false);
 
@@ -43,6 +44,7 @@ export default function MeetingPage() {
           setMeeting(data);
           setAdminPhone(data.adminPhone ?? '');
           setAdminEmail(data.adminEmail ?? '');
+          setChairpersonPhone(data.chairpersonPhone ?? '');
         } else { setMeeting(null); setError('Meeting not found.'); }
       })
       .catch(err => { setMeeting(null); setError(err instanceof Error ? err.message : 'Failed to fetch'); })
@@ -66,7 +68,7 @@ export default function MeetingPage() {
     await fetch(`/api/${org}/${company}/meetings/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPhone, adminEmail }),
+      body: JSON.stringify({ adminPhone, adminEmail, chairpersonPhone }),
     });
     setSavingAdmin(false);
     setAdminSaved(true);
@@ -117,10 +119,18 @@ export default function MeetingPage() {
             <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Admin Email e.g. admin@company.com"
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
+
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 mt-4 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            Chairperson (receives a WhatsApp alert when a task is submitted)
+          </p>
+          <input value={chairpersonPhone} onChange={e => setChairpersonPhone(e.target.value)} placeholder="Chairperson WhatsApp No. e.g. +91 9876543210"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+
           <div className="flex items-center gap-3 mt-3">
             <button onClick={saveAdmin} disabled={savingAdmin}
               className="bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-              {savingAdmin ? 'Saving…' : 'Save Admin'}
+              {savingAdmin ? 'Saving…' : 'Save Contacts'}
             </button>
             {adminSaved && <span className="text-green-600 text-sm font-medium flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Saved</span>}
           </div>

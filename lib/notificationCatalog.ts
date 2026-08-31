@@ -39,8 +39,8 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   },
   {
     key: 'task_submitted_admin',
-    label: 'Task Submitted — Meeting Admin',
-    description: 'Notifies the admin a task was marked done, including the submitter\'s title/notes/Drive links.',
+    label: 'Task Submitted — Admin & Chairperson',
+    description: 'WhatsApp goes to both the meeting admin and the chairperson (if their numbers are set); email goes to the admin only, with the submitter\'s title/notes/Drive links.',
     trigger: 'When an assignee submits the submit-task form.',
     channels: ['whatsapp', 'email'],
   },
