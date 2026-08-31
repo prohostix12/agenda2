@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { NOTIFICATION_CATALOG } from '@/lib/notificationCatalog';
 
 interface Org {
   _id: string;
@@ -100,10 +101,11 @@ export default function AdminPage() {
   const [extRequests, setExtRequests] = useState<ExtRequest[]>([]);
   const [showExtRequests, setShowExtRequests] = useState(true);
 
-  const [waTestPhone, setWaTestPhone] = useState('');
-  const [waTestLoading, setWaTestLoading] = useState(false);
-  const [waTestResult, setWaTestResult] = useState<{ ok: boolean; hint?: string; results?: Record<string, unknown>[] } | null>(null);
-  const [showWaTest, setShowWaTest] = useState(false);
+  const [notifyTestPhone, setNotifyTestPhone] = useState('');
+  const [notifyTestEmail, setNotifyTestEmail] = useState('');
+  const [notifyLoading, setNotifyLoading] = useState<Record<string, boolean>>({});
+  const [notifyResults, setNotifyResults] = useState<Record<string, { ok: boolean; whatsapp?: { ok: boolean; error?: string; note?: string }; email?: { ok: boolean; error?: string } }>>({});
+  const [showNotifyTest, setShowNotifyTest] = useState(false);
 
   const [cronRunning, setCronRunning] = useState(false);
   const [cronResult, setCronResult] = useState<Record<string, unknown> | null>(null);
@@ -170,22 +172,23 @@ export default function AdminPage() {
     loadOrgs();
   }
 
-  async function testWhatsApp() {
-    if (!waTestPhone.trim()) return;
-    setWaTestLoading(true);
-    setWaTestResult(null);
+  async function testNotification(key: string) {
+    const phone = notifyTestPhone.trim();
+    const email = notifyTestEmail.trim();
+    if (!phone && !email) return;
+    setNotifyLoading(l => ({ ...l, [key]: true }));
     try {
-      const res = await fetch('/api/admin/test-whatsapp', {
+      const res = await fetch('/api/admin/test-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: waTestPhone.trim() }),
+        body: JSON.stringify({ key, phone: phone || undefined, email: email || undefined }),
       });
       const data = await res.json();
-      setWaTestResult(data);
+      setNotifyResults(r => ({ ...r, [key]: data }));
     } catch (e) {
-      setWaTestResult({ ok: false, hint: e instanceof Error ? e.message : 'Network error' });
+      setNotifyResults(r => ({ ...r, [key]: { ok: false, whatsapp: { ok: false, error: e instanceof Error ? e.message : 'Network error' } } }));
     } finally {
-      setWaTestLoading(false);
+      setNotifyLoading(l => ({ ...l, [key]: false }));
     }
   }
 
@@ -328,107 +331,135 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* WhatsApp Test */}
+        {/* Notification Testing */}
         <div className="mt-8">
           <button
-            onClick={() => setShowWaTest(v => !v)}
+            onClick={() => setShowNotifyTest(v => !v)}
             className="w-full flex items-center justify-between bg-gray-900 border border-white/10 rounded-2xl px-5 py-4 hover:border-white/20 transition group"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-400" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
               </div>
               <div className="text-left">
-                <p className="font-bold text-white text-sm">WhatsApp Notifications</p>
-                <p className="text-gray-500 text-xs">Test and diagnose Gupshup WhatsApp delivery</p>
+                <p className="font-bold text-white text-sm">Notification Testing</p>
+                <p className="text-gray-500 text-xs">Send a sample WhatsApp/email for each notification the app sends</p>
               </div>
             </div>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showWaTest ? 'rotate-180' : ''}`}
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showNotifyTest ? 'rotate-180' : ''}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
 
-          {showWaTest && (
-            <div className="mt-3 bg-gray-900 border border-white/10 rounded-2xl p-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Test Phone Number (with country code)</label>
-                <div className="flex gap-2 mt-1">
+          {showNotifyTest && (
+            <div className="mt-3 bg-gray-900 border border-white/10 rounded-2xl p-5 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Test Phone Number (with country code)</label>
                   <input
-                    value={waTestPhone}
-                    onChange={e => setWaTestPhone(e.target.value)}
+                    value={notifyTestPhone}
+                    onChange={e => setNotifyTestPhone(e.target.value)}
                     placeholder="e.g. +91 9876543210"
-                    className="flex-1 bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400/50"
-                    onKeyDown={e => e.key === 'Enter' && testWhatsApp()}
+                    className="w-full mt-1 bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400/50"
                   />
-                  <button
-                    onClick={testWhatsApp}
-                    disabled={waTestLoading || !waTestPhone.trim()}
-                    className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2"
-                  >
-                    {waTestLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Sending…
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                        Send Test
-                      </>
-                    )}
-                  </button>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Test Email Address</label>
+                  <input
+                    type="email"
+                    value={notifyTestEmail}
+                    onChange={e => setNotifyTestEmail(e.target.value)}
+                    placeholder="e.g. you@example.com"
+                    className="w-full mt-1 bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                  />
                 </div>
               </div>
 
-              {waTestResult && (
-                <div className={`rounded-xl border p-4 text-sm ${waTestResult.ok
-                  ? 'bg-green-500/10 border-green-500/30 text-green-300'
-                  : 'bg-red-500/10 border-red-500/30 text-red-300'
-                }`}>
-                  <p className="font-bold mb-1">
-                    {waTestResult.ok ? '✓ Message submitted to Gupshup' : '✗ Failed to send'}
-                  </p>
-                  <p className="text-xs opacity-80">{waTestResult.hint}</p>
-                  {waTestResult.results && (
-                    <div className="mt-2 space-y-1">
-                      {waTestResult.results.map((r, i) => (
-                        <div key={i} className="text-xs font-mono bg-black/30 rounded-lg px-3 py-1.5">
-                          {String(r.type)}: {r.ok ? '✓ submitted' : `✗ ${String(r.error ?? 'failed')}`}
-                          {r.method ? ` (via ${String(r.method)})` : null}
+              <div className="space-y-3">
+                {NOTIFICATION_CATALOG.map(n => {
+                  const loading = notifyLoading[n.key];
+                  const res = notifyResults[n.key];
+                  return (
+                    <div key={n.key} className="bg-black/20 border border-white/5 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <p className="font-bold text-white text-sm">{n.label}</p>
+                          <p className="text-gray-400 text-xs mt-0.5">{n.description}</p>
+                          <p className="text-gray-600 text-[11px] mt-1 italic">Fires: {n.trigger}</p>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {n.channels.includes('whatsapp') && (
+                            <button
+                              onClick={() => testNotification(n.key)}
+                              disabled={loading || !notifyTestPhone.trim()}
+                              title={!notifyTestPhone.trim() ? 'Enter a test phone number above' : undefined}
+                              className="bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5"
+                            >
+                              {loading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                              )}
+                              WhatsApp
+                            </button>
+                          )}
+                          {n.channels.includes('email') && (
+                            <button
+                              onClick={() => testNotification(n.key)}
+                              disabled={loading || !notifyTestEmail.trim()}
+                              title={!notifyTestEmail.trim() ? 'Enter a test email above' : undefined}
+                              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5"
+                            >
+                              {loading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                              )}
+                              Email
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {res && (
+                        <div className="mt-3 space-y-1.5">
+                          {res.whatsapp && (
+                            <div className={`text-xs rounded-lg px-3 py-1.5 ${res.whatsapp.ok ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+                              WhatsApp: {res.whatsapp.ok ? '✓ submitted to Gupshup' : `✗ ${res.whatsapp.error ?? 'failed'}`}
+                              {res.whatsapp.note && <div className="text-amber-300 mt-0.5">⚠ {res.whatsapp.note}</div>}
+                            </div>
+                          )}
+                          {res.email && (
+                            <div className={`text-xs rounded-lg px-3 py-1.5 ${res.email.ok ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+                              Email: {res.email.ok ? '✓ sent' : `✗ ${res.email.error ?? 'failed'}`}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                })}
+              </div>
 
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
                 <p className="text-xs font-bold text-amber-400 mb-2">Setup Checklist</p>
                 <ul className="text-xs text-gray-400 space-y-1.5">
                   <li className="flex items-start gap-2">
                     <span className="text-amber-400 mt-0.5">1.</span>
-                    <span>Go to <strong className="text-white">Gupshup Dashboard → WhatsApp → {`{your app}`}</strong></span>
+                    <span>Gupshup: app must be <strong className="text-green-400">Live</strong> (not Sandbox), with these templates approved —
+                      <code className="text-blue-300"> mom_reminder</code>, <code className="text-blue-300">mom_reminder_admin</code>, <code className="text-blue-300">mom_extend</code>, <code className="text-blue-300">task_accept_notify</code>, <code className="text-blue-300">extend_accept</code>
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-400 mt-0.5">2.</span>
-                    <span>Make sure the app status is <strong className="text-green-400">Live</strong> (not Sandbox)</span>
+                    <span>Env vars: <code className="text-blue-300">GUPSHUP_API_KEY</code>, <code className="text-blue-300">GUPSHUP_SOURCE_NUMBER</code>, and template-ID overrides <code className="text-blue-300">GUPSHUP_TPL_*</code> — <code className="text-blue-300">GUPSHUP_TPL_TASK_ACCEPT_NOTIFY</code> and <code className="text-blue-300">GUPSHUP_TPL_EXTEND_ACCEPT</code> have no default and must be set for those two to send</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-400 mt-0.5">3.</span>
-                    <span>Create templates: <code className="text-blue-300">mom_reminder</code>, <code className="text-blue-300">mom_admin_reminder</code>, <code className="text-blue-300">mom_extend</code></span>
+                    <span>Email: <code className="text-blue-300">SMTP_HOST</code>, <code className="text-blue-300">SMTP_PORT</code>, <code className="text-blue-300">SMTP_USER</code>, <code className="text-blue-300">SMTP_PASS</code> — without all four, emails silently go to a throwaway test inbox instead of the real recipient</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-400 mt-0.5">4.</span>
-                    <span>Wait for template approval (usually 1-24 hours)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-amber-400 mt-0.5">5.</span>
-                    <span>Meanwhile, <strong className="text-white">session messages work immediately</strong> — recipients just need to send any message to your business number first</span>
+                    <span>The <strong className="text-white">Extension Requested — Meeting Admin</strong> WhatsApp test above is expected to warn — the live code sends only 3 params through the mom_extend template ID, which needs 4. Flagging for a fix.</span>
                   </li>
                 </ul>
               </div>
