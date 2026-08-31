@@ -78,6 +78,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Submit-task and review-request pages — public (employees/admins have no account)
+  if (
+    pathname.startsWith('/submit-task/') || pathname.startsWith('/api/submit-task/') ||
+    pathname.startsWith('/review-request/') || pathname.startsWith('/api/review-request/')
+  ) {
+    return NextResponse.next();
+  }
+
   // Gupshup webhook — public (receives delivery status callbacks)
   if (pathname.startsWith('/api/gupshup/')) {
     return NextResponse.next();
