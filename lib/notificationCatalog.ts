@@ -33,7 +33,7 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   {
     key: 'extension_requested_admin',
     label: 'Extension Requested — Meeting Admin',
-    description: 'Notifies the admin that an extension was requested, with a link to approve/reject it.',
+    description: 'Notifies the admin that an extension was requested, with a link to approve/reject it. WhatsApp side is plain session text (no approved template yet), so it only delivers if the admin has messaged your business number in the last 24h, or on a sandbox app.',
     trigger: 'When an assignee submits the extend-request form.',
     channels: ['whatsapp', 'email'],
   },

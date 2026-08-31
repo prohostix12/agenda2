@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
+import { sendWhatsAppTemplate, sendWhatsAppText, sendEmailReminder } from '@/lib/reminders';
 import { NOTIFICATION_CATALOG } from '@/lib/notificationCatalog';
 
 const APP_URL = (
@@ -88,15 +88,19 @@ export async function POST(req: Request) {
 
     case 'extension_requested_admin': {
       if (phone) {
-        // NOTE: the live code currently reuses the mom_extend template ID here with only
-        // 3 params, not the 4 that mom_extend actually needs — this test reflects that
-        // as-is so the mismatch is visible, rather than masking it with different params.
-        const tplId = process.env.GUPSHUP_TPL_EXTEND ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
-        result.whatsapp = await whatsappResult(() => sendWhatsAppTemplate({
-          to: phone, templateId: tplId,
-          params: [SAMPLE.task, SAMPLE.meeting, `Extension requested to ${SAMPLE.dateStr}`],
-        }));
-        if (result.whatsapp) result.whatsapp.note = 'Uses the mom_extend template ID with 3 params — mom_extend expects 4. Verify this in Gupshup.';
+        // No approved Gupshup template exists for this notification, so the live
+        // code sends it as WhatsApp session text (not a template) — this test
+        // mirrors that exactly.
+        const waBody = [
+          `📋 *Deadline Extension Request — MOM*`, ``,
+          `*Meeting:* ${SAMPLE.meeting}`, `*Requested by:* ${SAMPLE.assignee}`, `*Subject:* ${SAMPLE.task}`,
+          `*Original Deadline:* ${SAMPLE.dateStr}`, `*New Deadline Requested:* ${SAMPLE.dateStr}`, ``,
+          `*Reason:*`, `(sample reason text)`, ``,
+          `👉 Review and respond to this request:`, SAMPLE.reviewLink, ``,
+          `— _MOM, Minutes of Meeting System_`,
+        ].join('\n');
+        result.whatsapp = await whatsappResult(() => sendWhatsAppText(phone, waBody));
+        if (result.whatsapp) result.whatsapp.note = 'Sent as plain WhatsApp session text (no approved template for this yet) — delivers only if the admin has messaged your business number in the last 24h, or on a sandbox app.';
       }
       if (email) {
         const body = [

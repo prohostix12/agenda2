@@ -5,7 +5,7 @@ import { connectDB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
 import { getExtensionRequestModel } from '@/models/ExtensionRequest';
-import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
+import { sendWhatsAppText, sendEmailReminder } from '@/lib/reminders';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,12 +143,11 @@ export async function POST(req: Request, { params }: Ctx) {
     // Send WhatsApp + email to each admin
     for (const admin of recipients) {
       if (admin.phone) {
-        const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
-        await sendWhatsAppTemplate({
-          to:         admin.phone,
-          templateId: tplExtend,
-          params:     [item.subject.split('\n')[0].trim(), meetingName, `Extension requested to ${fmtDate(requestedDeadline)}`],
-        });
+        // No approved Gupshup template exists for this notification (it is NOT the
+        // "action item is now due" mom_extend template — that one is assignee-only
+        // and expects 4 different params). Send the full message as WhatsApp session
+        // text instead of misusing mom_extend.
+        await sendWhatsAppText(admin.phone, adminMsg);
       }
       if (admin.email) {
         await sendEmailReminder({

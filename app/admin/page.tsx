@@ -459,7 +459,7 @@ export default function AdminPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-400 mt-0.5">4.</span>
-                    <span>The <strong className="text-white">Extension Requested — Meeting Admin</strong> WhatsApp test above is expected to warn — the live code sends only 3 params through the mom_extend template ID, which needs 4. Flagging for a fix.</span>
+                    <span>The <strong className="text-white">Extension Requested — Meeting Admin</strong> WhatsApp isn&apos;t on an approved template yet, so it sends as plain session text — it only delivers if the admin has messaged your business number within the last 24h, or on a sandbox app. Get a template approved in Gupshup to make it reliable.</span>
                   </li>
                 </ul>
               </div>
