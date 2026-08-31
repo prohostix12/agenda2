@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendWhatsAppTemplate, sendWhatsAppText, sendEmailReminder } from '@/lib/reminders';
+import { sendWhatsAppTemplate, sendWhatsAppText, sendEmailReminder, normalisePhone } from '@/lib/reminders';
 import { NOTIFICATION_CATALOG } from '@/lib/notificationCatalog';
 
 const APP_URL = (
@@ -28,7 +28,7 @@ async function whatsappResult(fn: () => Promise<SendResult>): Promise<SendResult
 }
 
 export async function POST(req: Request) {
-  const { key, phone, email } = await req.json();
+  const { key, phone, email, chairPhone } = await req.json();
 
   const entry = NOTIFICATION_CATALOG.find(n => n.key === key);
   if (!entry) return NextResponse.json({ error: 'Unknown notification type' }, { status: 400 });
@@ -123,14 +123,28 @@ export async function POST(req: Request) {
     }
 
     case 'task_submitted_admin': {
-      if (phone) {
+      const recipients = [phone, chairPhone]
+        .filter((p): p is string => !!p?.trim())
+        .map((p: string) => p.trim());
+      const uniqueRecipients = [...new Set(recipients.map(normalisePhone))]
+        .map(np => recipients.find(p => normalisePhone(p) === np)!);
+
+      if (uniqueRecipients.length) {
         const tplId = process.env.GUPSHUP_TPL_TASK_ACCEPT_NOTIFY;
-        result.whatsapp = tplId
-          ? await whatsappResult(() => sendWhatsAppTemplate({
-              to: phone, templateId: tplId,
-              params: [SAMPLE.meeting, SAMPLE.assignee, SAMPLE.task, 'Finished creating report'],
-            }))
-          : { ok: false, error: 'GUPSHUP_TPL_TASK_ACCEPT_NOTIFY is not set' };
+        if (!tplId) {
+          result.whatsapp = { ok: false, error: 'GUPSHUP_TPL_TASK_ACCEPT_NOTIFY is not set' };
+        } else {
+          const sends = await Promise.all(uniqueRecipients.map(to => whatsappResult(() => sendWhatsAppTemplate({
+            to, templateId: tplId,
+            params: [SAMPLE.meeting, SAMPLE.assignee, SAMPLE.task, 'Finished creating report'],
+          }))));
+          const failed = sends.filter(s => !s.ok);
+          result.whatsapp = {
+            ok: failed.length === 0,
+            error: failed.length ? failed.map(f => f.error).join('; ') : undefined,
+            note: `Sent to ${uniqueRecipients.length} recipient(s): ${uniqueRecipients.join(', ')}${chairPhone ? '' : ' — add a Chairperson Test Phone above to test that recipient too.'}`,
+          };
+        }
       }
       if (email) {
         const body = [

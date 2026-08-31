@@ -103,6 +103,7 @@ export default function AdminPage() {
 
   const [notifyTestPhone, setNotifyTestPhone] = useState('');
   const [notifyTestEmail, setNotifyTestEmail] = useState('');
+  const [notifyTestChairPhone, setNotifyTestChairPhone] = useState('');
   const [notifyLoading, setNotifyLoading] = useState<Record<string, boolean>>({});
   const [notifyResults, setNotifyResults] = useState<Record<string, { ok: boolean; whatsapp?: { ok: boolean; error?: string; note?: string }; email?: { ok: boolean; error?: string } }>>({});
   const [showNotifyTest, setShowNotifyTest] = useState(false);
@@ -175,13 +176,14 @@ export default function AdminPage() {
   async function testNotification(key: string) {
     const phone = notifyTestPhone.trim();
     const email = notifyTestEmail.trim();
+    const chairPhone = notifyTestChairPhone.trim();
     if (!phone && !email) return;
     setNotifyLoading(l => ({ ...l, [key]: true }));
     try {
       const res = await fetch('/api/admin/test-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, phone: phone || undefined, email: email || undefined }),
+        body: JSON.stringify({ key, phone: phone || undefined, email: email || undefined, chairPhone: chairPhone || undefined }),
       });
       const data = await res.json();
       setNotifyResults(r => ({ ...r, [key]: data }));
@@ -356,7 +358,7 @@ export default function AdminPage() {
 
           {showNotifyTest && (
             <div className="mt-3 bg-gray-900 border border-white/10 rounded-2xl p-5 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Test Phone Number (with country code)</label>
                   <input
@@ -375,6 +377,16 @@ export default function AdminPage() {
                     placeholder="e.g. you@example.com"
                     className="w-full mt-1 bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50"
                   />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Chairperson Test Phone</label>
+                  <input
+                    value={notifyTestChairPhone}
+                    onChange={e => setNotifyTestChairPhone(e.target.value)}
+                    placeholder="e.g. +91 9876543211"
+                    className="w-full mt-1 bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400/50"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">Used only by the &quot;Task Submitted — Admin &amp; Chairperson&quot; test below.</p>
                 </div>
               </div>
 
