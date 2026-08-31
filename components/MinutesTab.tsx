@@ -6,6 +6,7 @@ import { downloadMinutesPdf, shareMinutesPdf, getMinutesPdfBase64, getMinutesTex
 
 interface Attendee { name: string; designation: string; }
 interface DeadlineHistoryEntry { previousDeadline: string; requestedDeadline: string; reason: string; status: 'approved' | 'rejected'; decidedAt: string; }
+interface TaskSubmission { title: string; notes?: string; driveLinks?: string[]; submittedAt: string; }
 interface MinutesItem {
   subject: string;
   actionBy: string;
@@ -15,6 +16,7 @@ interface MinutesItem {
   actionByPhone?: string;
   actionByEmail?: string;
   deadlineHistory?: DeadlineHistoryEntry[];
+  submission?: TaskSubmission;
 }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
@@ -601,6 +603,36 @@ export default function MinutesTab({ meeting, companySlug }: { meeting: Meeting;
                         </div>
                       </div>
                     </div>
+
+                    {/* Submitted task details */}
+                    {item.submission && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 mb-2 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Submitted by {item.actionBy || 'assignee'} — {fmtShortDate(item.submission.submittedAt)}
+                        </p>
+                        <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 space-y-1.5">
+                          <div className="text-xs text-gray-700"><span className="font-semibold">Title:</span> {item.submission.title}</div>
+                          {item.submission.notes && (
+                            <div className="text-xs text-gray-700 whitespace-pre-wrap"><span className="font-semibold">Notes:</span> {item.submission.notes}</div>
+                          )}
+                          {!!item.submission.driveLinks?.length && (
+                            <div className="text-xs text-gray-700">
+                              <span className="font-semibold">Files:</span>
+                              <ul className="mt-1 space-y-0.5">
+                                {item.submission.driveLinks.map((link, li) => (
+                                  <li key={li}>
+                                    <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{link}</a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

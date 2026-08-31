@@ -13,6 +13,13 @@ export interface IDeadlineHistoryEntry {
   decidedAt: Date;
 }
 
+export interface ITaskSubmission {
+  title: string;
+  notes?: string;
+  driveLinks?: string[];
+  submittedAt: Date;
+}
+
 export interface IMinutesItem {
   subject: string;
   actionBy: string;
@@ -22,6 +29,7 @@ export interface IMinutesItem {
   actionByPhone?: string;  // WhatsApp number with country code, e.g. +919876543210
   actionByEmail?: string;  // Email address for reminders
   deadlineHistory?: IDeadlineHistoryEntry[];  // audit trail of extension request decisions
+  submission?: ITaskSubmission;  // set when the assignee submits the task via the submit-task link
 }
 
 export interface IMinutes extends Document {
@@ -56,6 +64,16 @@ const DeadlineHistoryEntrySchema = new Schema<IDeadlineHistoryEntry>(
   { _id: false }
 );
 
+const TaskSubmissionSchema = new Schema<ITaskSubmission>(
+  {
+    title:       { type: String, required: true },
+    notes:       { type: String, default: '' },
+    driveLinks:  { type: [String], default: [] },
+    submittedAt: { type: Date, required: true },
+  },
+  { _id: false }
+);
+
 const MinutesItemSchema = new Schema<IMinutesItem>(
   {
     subject:         { type: String, default: '' },
@@ -66,6 +84,7 @@ const MinutesItemSchema = new Schema<IMinutesItem>(
     actionByPhone:   { type: String, trim: true },
     actionByEmail:   { type: String, trim: true },
     deadlineHistory: { type: [DeadlineHistoryEntrySchema], default: [] },
+    submission:      { type: TaskSubmissionSchema },
   },
   { _id: false }
 );

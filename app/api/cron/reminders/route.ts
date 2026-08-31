@@ -57,8 +57,10 @@ async function processDb(
         actionDate.setHours(0, 0, 0, 0);
         const daysLeft = Math.round((actionDate.getTime() - today.getTime()) / 86_400_000);
 
+        const taskToken = makeToken(String(minutes.meetingId), idx);
+        const submitLink = `${APP_URL}/submit-task/${taskToken}`;
         const extendLink = daysLeft <= 0
-          ? `${APP_URL}/extend-request/${makeToken(String(minutes.meetingId), idx)}`
+          ? `${APP_URL}/extend-request/${taskToken}`
           : undefined;
 
         const [dy, dm, dd] = item.dateOfAction.substring(0, 10).split('-').map(Number);
@@ -91,7 +93,12 @@ async function processDb(
 
         // ── Emails ───────────────────────────────────────────────────
         if (item.actionByEmail?.trim()) {
-          const r = await sendEmailReminder({ to: item.actionByEmail.trim(), ...payload });
+          const r = await sendEmailReminder({
+            to: item.actionByEmail.trim(),
+            ...payload,
+            submitLink,
+            submitLabel: '✅ Mark Task as Done',
+          });
           if (r.ok) result.sent++; else result.errors.push(`email:${item.actionByEmail}: ${r.error}`);
         }
         if (adminEmail && adminEmail.toLowerCase() !== (item.actionByEmail?.trim() ?? '').toLowerCase() && daysLeft <= 3) {
@@ -104,7 +111,7 @@ async function processDb(
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
             templateId:     tplReminder,
-            templateParams: [meetingName, subjectLine, dateStr, countdownStr],
+            templateParams: [meetingName, subjectLine, dateStr, countdownStr, submitLink],
           });
           if (r.ok) result.sent++; else result.errors.push(`wa:${item.actionByPhone}: ${r.error}`);
         }
@@ -119,13 +126,13 @@ async function processDb(
           if (r.ok) result.sent++; else result.errors.push(`admin-wa: ${r.error}`);
         }
 
-        // ── WhatsApp: assignee — extend link on/after due date ────────
+        // ── WhatsApp: assignee — submit/extend links on/after due date ─
         if (daysLeft <= 0 && extendLink && item.actionByPhone?.trim()) {
           const tplExtend = process.env.GUPSHUP_TPL_EXTEND ?? 'd88bf9b1-690f-4967-92f2-a8af3dbc44f7';
           const r = await sendWhatsAppReminder({
             to:             item.actionByPhone.trim(),
             templateId:     tplExtend,
-            templateParams: [subjectLine, meetingName, extendLink],
+            templateParams: [subjectLine, meetingName, submitLink, extendLink],
           });
           if (r.ok) result.sent++; else result.errors.push(`wa-extend:${item.actionByPhone}: ${r.error}`);
         }

@@ -4,6 +4,7 @@ import { connectDB, dbForCompany, dbForSubCompany } from '@/lib/mongodb';
 import { getMinutesModel } from '@/models/Minutes';
 import { getMeetingModel } from '@/models/Meeting';
 import { getExtensionRequestModel } from '@/models/ExtensionRequest';
+import { sendWhatsAppTemplate, sendEmailReminder } from '@/lib/reminders';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +101,48 @@ export async function POST(req: Request, { params }: Ctx) {
         item.dateOfAction = request.requestedDeadline;
       }
       await minutes.save();
+
+      // Notify the assignee that their extension was approved
+      if (newStatus === 'approved') {
+        const taskName = item.subject.split('\n')[0].trim();
+        const newDeadlineFmt = fmtDate(request.requestedDeadline);
+        const approvedOnFmt = fmtDate(decidedAt.toISOString());
+
+        if (item.actionByPhone?.trim()) {
+          const tplExtendAccept = process.env.GUPSHUP_TPL_EXTEND_ACCEPT;
+          if (tplExtendAccept) {
+            await sendWhatsAppTemplate({
+              to:         item.actionByPhone.trim(),
+              templateId: tplExtendAccept,
+              params:     [request.meetingName, taskName, newDeadlineFmt, approvedOnFmt],
+            });
+          }
+        }
+        if (item.actionByEmail?.trim()) {
+          const body = [
+            `📋 *Your deadline extension has been approved.*`,
+            ``,
+            `*Meeting:* ${request.meetingName}`,
+            `*Task:* ${taskName}`,
+            `*New deadline:* ${newDeadlineFmt}`,
+            `*Approved on:* ${approvedOnFmt}`,
+            ``,
+            `Please submit your task before the date.`,
+            ``,
+            `— _MOM, Minutes of Meeting System_`,
+          ].join('\n');
+          await sendEmailReminder({
+            to:            item.actionByEmail.trim(),
+            meetingName:   request.meetingName,
+            subject:       taskName,
+            actionBy:      item.actionBy ?? '',
+            daysLeft:      -999,
+            dateOfAction:  request.requestedDeadline,
+            customSubject: `✅ Extension Approved — ${taskName} — ${request.meetingName}`,
+            customBody:    body,
+          });
+        }
+      }
     }
 
     const meeting = await Meeting.findById(request.meetingId).lean();

@@ -5,7 +5,8 @@ import { parseLocalDate } from '@/lib/dateUtils';
 
 interface Attendee { name: string; designation: string; }
 interface DeadlineHistoryEntry { previousDeadline: string; requestedDeadline: string; reason: string; status: 'approved' | 'rejected'; decidedAt: string; }
-interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; actionByPhone?: string; actionByEmail?: string; deadlineHistory?: DeadlineHistoryEntry[]; }
+interface TaskSubmission { title: string; notes?: string; driveLinks?: string[]; submittedAt: string; }
+interface MinutesItem { subject: string; actionBy: string; dateOfAction: string; remarks: string; followedUp?: boolean; actionByPhone?: string; actionByEmail?: string; deadlineHistory?: DeadlineHistoryEntry[]; submission?: TaskSubmission; }
 interface AgendaItem { order: number; title: string; description: string; duration: string; presenters: string[]; }
 interface MinutesData {
   meetingType: string; meetingReference: string;
@@ -187,7 +188,14 @@ export default function MinutesPreview({ meeting, data, agendaItems = [] }: { me
                       </div>
                     )}
                   </td>
-                  <td className="border border-gray-600 px-3 py-3 align-top">{item.remarks || ''}</td>
+                  <td className="border border-gray-600 px-3 py-3 align-top">
+                    {item.remarks || ''}
+                    {item.submission && (
+                      <div className="mt-1 text-[10px] text-green-700" title={[`Submitted: ${item.submission.title}`, item.submission.notes, ...(item.submission.driveLinks ?? [])].filter(Boolean).join('\n')}>
+                        Submitted: {item.submission.title}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
               {[...Array(Math.max(0, 2 - items.length))].map((_, i) => (
